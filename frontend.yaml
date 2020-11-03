@@ -7,10 +7,6 @@ Parameters:
     Description:
       The name of the parent Fargate networking stack that you created. Necessary
       to locate and reference resources created by that stack.
-  ServiceName:
-    Type: String
-    Default: av-frontend
-    Description: A name for the service
   ImageRepoName:
     Type: String
     Default: codemill-docker.jfrog.io/accurate-player/accurate-player-qc
@@ -27,25 +23,12 @@ Parameters:
     Type: Number
     Default: 512
     Description: How much memory in megabytes to give the container
-  Path:
-    Type: String
-    Default: "*"
-    Description: A path on the public load balancer that this service
-      should be connected to. Use * to send all load balancer
-      traffic to this service.
-  Priority:
-    Type: Number
-    Default: 3
-    Description: The priority for the routing rule added to the load balancer.
-      This only applies if your have multiple services which have been
-      assigned to different paths on the load balancer.
   DesiredCount:
     Type: Number
     Default: 2
     Description: How many copies of the service task to run
   RegistryCredentials:
     Type: String
-    Default: arn:aws:secretsmanager:eu-north-1:653767197116:secret:jfrog-docker-gitlabci-50X7p1
     Description: Credentials to codemill.jfrog.io for pulling docker images
   ApplicationTag:
     Type: String
@@ -59,22 +42,16 @@ Parameters:
   PublicLoadbalancerListenerArn:
     Description: "Public Loadbalancer Listener Arn"
     Type: String
-  ClusterName:
-    Description: "ECS cluster name"
-    Type: String
-    Default: av-cluster
+
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
           default: "Service configuration"
         Parameters:
-          - ServiceName
           - ContainerCpu
           - ContainerMemory
           - DesiredCount
-          - Priority
-          - Path
       - Label:
           default: "Image configuration"
         Parameters:
@@ -93,7 +70,7 @@ Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Ref "ServiceName"
+      Family: av-frontend
       Cpu: !Ref "ContainerCpu"
       Memory: !Ref "ContainerMemory"
       NetworkMode: awsvpc
@@ -102,7 +79,7 @@ Resources:
       ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       ContainerDefinitions:
-        - Name: !Ref "ServiceName"
+        - Name: av-frontend
           Cpu: !Ref "ContainerCpu"
           Memory: !Ref "ContainerMemory"
           Image: !Sub ${ImageRepoName}:${ImageTag}
@@ -124,7 +101,7 @@ Resources:
               awslogs-group:
                 Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: !Ref ServiceName
+              awslogs-stream-prefix: av-frontend
           RepositoryCredentials:
             CredentialsParameter: !Ref "RegistryCredentials"
           PortMappings:
@@ -180,7 +157,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
     Properties:
-      Cluster: !Ref ClusterName
+      Cluster: accurate-video
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
@@ -189,7 +166,7 @@ Resources:
       DesiredCount: !Ref "DesiredCount"
       LaunchType: FARGATE
       LoadBalancers:
-        - ContainerName: !Ref "ServiceName"
+        - ContainerName: av-frontend
           ContainerPort: 80
           TargetGroupArn: !Ref "TargetGroup"
       NetworkConfiguration:
@@ -219,7 +196,7 @@ Resources:
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: "15"
-      Name: !Ref "ServiceName"
+      Name: av-frontend
       Port: 80
       Protocol: HTTP
       UnhealthyThresholdCount: 2
@@ -237,9 +214,9 @@ Resources:
           Type: "forward"
       Conditions:
         - Field: path-pattern
-          Values: [!Ref "Path"]
+          Values: ["*"]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
-      Priority: !Ref "Priority"
+      Priority: 3
 
   UpdateServiceLambdaFunction:
     Type: "AWS::Lambda::Function"
@@ -261,7 +238,7 @@ Resources:
           };
       Environment:
         Variables:
-          CLUSTER_NAME: !Ref ClusterName
+          CLUSTER_NAME: accurate-video
           SERVICE_NAME: !Ref Service
       Handler: index.handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -316,7 +293,7 @@ Resources:
                 Action:
                   - ecs:UpdateService
                 Resource:
-                  - !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/${ClusterName}/${Service.Name}
+                  - !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/${Service.Name}
       Tags:
         - Key: application
           Value: !Ref ApplicationTag

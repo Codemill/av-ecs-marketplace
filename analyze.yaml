@@ -7,10 +7,6 @@ Parameters:
     Description:
       The name of the parent Fargate networking stack that you created. Necessary
       to locate and reference resources created by that stack.
-  ServiceName:
-    Type: String
-    Default: av-analyze
-    Description: A name for the service
   ImageRepoName:
     Type: String
     Default: codemill-docker.jfrog.io/accurate-player/accurate-analyze
@@ -21,7 +17,6 @@ Parameters:
     Description: The ecr repo and tag to use for image deployment
   RegistryCredentials:
     Type: String
-    Default: arn:aws:secretsmanager:eu-north-1:653767197116:secret:jfrog-docker-gitlabci-50X7p1
     Description: Credentials to codemill.jfrog.io for pulling docker images
   ContainerCpu:
     Type: Number
@@ -31,18 +26,6 @@ Parameters:
     Type: Number
     Default: 512
     Description: How much memory in megabytes to give the container
-  Path:
-    Type: String
-    Default: "/api/analyze/*"
-    Description: A path on the public load balancer that this service
-      should be connected to. Use * to send all load balancer
-      traffic to this service.
-  Priority:
-    Type: Number
-    Default: 1
-    Description: The priority for the routing rule added to the load balancer.
-      This only applies if your have multiple services which have been
-      assigned to different paths on the load balancer.
   DesiredCount:
     Type: Number
     Default: 2
@@ -62,35 +45,25 @@ Parameters:
     Type: String
     Default: "true"
     Description: ""
-  HttpPathPrefix:
-    Type: String
-    Default: "/api"
-    Description: ""
   Vpc:
-    Description: "VPC ID"
     Type: AWS::EC2::VPC::Id
+    Description: "VPC ID"
   PrivateSubnets:
-    Description: "Private Subnets"
     Type: List<AWS::EC2::Subnet::Id>
+    Description: "Private Subnets"
   PublicLoadbalancerListenerArn:
+    Type: String
     Description: "Public Loadbalancer Listener Arn"
-    Type: String
-  ClusterName:
-    Description: "ECS cluster name"
-    Type: String
-    Default: av-cluster
+
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
           default: "Service configuration"
         Parameters:
-          - ServiceName
           - ContainerCpu
           - ContainerMemory
           - DesiredCount
-          - Priority
-          - Path
       - Label:
           default: "Image configuration"
         Parameters:
@@ -103,18 +76,20 @@ Metadata:
           - ApAnalyzeCacheDays
           - ApAnalyzeCacheDir
           - QuarkusHttpCors
-          - HttpPathPrefix
       - Label:
           default: "Other"
         Parameters:
           - InfrastructureStackName
           - ApplicationTag
+          - Vpc
+          - PrivateSubnets
+          - PublicLoadbalancerListenerArn
 
 Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Ref "ServiceName"
+      Family: av-analyze
       Cpu: !Ref "ContainerCpu"
       Memory: !Ref "ContainerMemory"
       NetworkMode: awsvpc
@@ -123,7 +98,7 @@ Resources:
       ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       ContainerDefinitions:
-        - Name: !Ref "ServiceName"
+        - Name: av-analyze
           Cpu: !Ref "ContainerCpu"
           Memory: !Ref "ContainerMemory"
           Image: !Sub ${ImageRepoName}:${ImageTag}
@@ -145,7 +120,7 @@ Resources:
               awslogs-group:
                 Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: !Ref ServiceName
+              awslogs-stream-prefix: av-analyze
           WorkingDirectory: "/opt/"
           Environment:
             - Name: AP_ANALYZE_CACHE_DAYS
@@ -155,7 +130,7 @@ Resources:
             - Name: QUARKUS_HTTP_CORS
               Value: !Ref QuarkusHttpCors
             - Name: HTTP_PATH_PREFIX
-              Value: !Ref HttpPathPrefix
+              Value: "/api"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -219,7 +194,7 @@ Resources:
             Type: SRV
       HealthCheckCustomConfig:
         FailureThreshold: 1
-      Name: !Ref "ServiceName"
+      Name: av-analyze
       NamespaceId:
         Fn::ImportValue: !Sub ${InfrastructureStackName}:PrivateDNSNamespace
       Tags:
@@ -233,7 +208,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
     Properties:
-      Cluster: !Ref ClusterName
+      Cluster: accurate-video
       LaunchType: FARGATE
       DeploymentConfiguration:
         MaximumPercent: 200
@@ -246,7 +221,7 @@ Resources:
           Subnets: !Ref PrivateSubnets
       TaskDefinition: !Ref "TaskDefinition"
       LoadBalancers:
-        - ContainerName: !Ref "ServiceName"
+        - ContainerName: av-analyze
           ContainerPort: 8080
           TargetGroupArn: !Ref "TargetGroup"
       ServiceRegistries:
@@ -275,7 +250,7 @@ Resources:
       Matcher:
         HttpCode: "200,401,400"
       TargetType: ip
-      Name: !Ref "ServiceName"
+      Name: av-analyze
       Port: 8080
       Protocol: HTTP
       UnhealthyThresholdCount: 2
@@ -293,6 +268,6 @@ Resources:
           Type: "forward"
       Conditions:
         - Field: path-pattern
-          Values: [!Ref "Path"]
+          Values: ["/api/analyze/*"]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
-      Priority: !Ref "Priority"
+      Priority: 1

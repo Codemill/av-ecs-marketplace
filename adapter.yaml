@@ -7,10 +7,6 @@ Parameters:
     Description:
       The name of the parent Fargate networking stack that you created. Necessary
       to locate and reference resources created by that stack.
-  ServiceName:
-    Type: String
-    Default: av-adapter
-    Description: A name for the service
   ImageRepoName:
     Type: String
     Default: codemill-docker.jfrog.io/accurate-player/accurate-player-adapter-postgres
@@ -27,42 +23,25 @@ Parameters:
     Type: Number
     Default: 1024
     Description: How much memory in megabytes to give the container
-  Path:
-    Type: String
-    Default: "/api/*"
-    Description: A path on the public load balancer that this service
-      should be connected to. Use * to send all load balancer
-      traffic to this service.
-  Priority:
-    Type: Number
-    Default: 2
-    Description: The priority for the routing rule added to the load balancer.
-      This only applies if your have multiple services which have been
-      assigned to different paths on the load balancer.
   DesiredCount:
     Type: Number
     Default: 1
     Description: How many copies of the service task to run
   RegistryCredentials:
     Type: String
-    Default: arn:aws:secretsmanager:eu-north-1:653767197116:secret:jfrog-docker-gitlabci-50X7p1
     Description: Credentials to codemill.jfrog.io for pulling docker images
   ApplicationTag:
     Type: String
     Default: "accurate-video"
   Vpc:
-    Description: "VPC ID"
     Type: AWS::EC2::VPC::Id
+    Description: "VPC ID"
   PrivateSubnets:
-    Description: "Private Subnets"
     Type: List<AWS::EC2::Subnet::Id>
+    Description: "Private Subnets"
   PublicLoadbalancerListenerArn:
+    Type: String
     Description: "Public Loadbalancer Listener Arn"
-    Type: String
-  ClusterName:
-    Description: "ECS cluster name"
-    Type: String
-    Default: av-cluster
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -70,12 +49,9 @@ Metadata:
       - Label:
           default: "Service configuration"
         Parameters:
-          - ServiceName
           - ContainerCpu
           - ContainerMemory
           - DesiredCount
-          - Priority
-          - Path
       - Label:
           default: "Image configuration"
         Parameters:
@@ -108,7 +84,7 @@ Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Ref "ServiceName"
+      Family: av-adapter
       Cpu: !Ref "ContainerCpu"
       Memory: !Ref "ContainerMemory"
       NetworkMode: awsvpc
@@ -117,7 +93,7 @@ Resources:
       ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       ContainerDefinitions:
-        - Name: !Ref "ServiceName"
+        - Name: av-adapter
           Cpu: !Ref "ContainerCpu"
           Memory: !Ref "ContainerMemory"
           Image: !Sub ${ImageRepoName}:${ImageTag}
@@ -131,7 +107,7 @@ Resources:
               awslogs-group:
                 Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: !Ref ServiceName
+              awslogs-stream-prefix: av-adapter
           RepositoryCredentials:
             CredentialsParameter: !Ref "RegistryCredentials"
           Environment:
@@ -178,7 +154,7 @@ Resources:
             - Name: QUARKUS_VERTX_CLUSTER_HOST
               Value: "0.0.0.0"
             - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_HOST
-              Value: !Sub ${ServiceName}.av.local
+              Value: av-adapter.av.local
             - Name: QUARKUS_VERTX_CLUSTER_PORT
               Value: "5699"
             - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_PORT
@@ -188,9 +164,9 @@ Resources:
             - Name: CLUSTER_XML
               Value: "/opt/ecs-cluster.xml"
             - Name: CLUSTER_NAME_REGEXP
-              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video"
             - Name: SERVICE_NAME_REGEXP
-              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/${ClusterName}/\\S+-(jobs|adapter)-\\S+"
+              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+"
 
           Secrets:
             - Name: QUARKUS_DATASOURCE_USERNAME
@@ -277,7 +253,7 @@ Resources:
             Type: SRV
       HealthCheckCustomConfig:
         FailureThreshold: 1
-      Name: !Ref "ServiceName"
+      Name: av-adapter
       NamespaceId:
         Fn::ImportValue: !Sub ${InfrastructureStackName}:PrivateDNSNamespace
       Tags:
@@ -291,7 +267,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
     Properties:
-      Cluster: !Ref ClusterName
+      Cluster: accurate-video
       LaunchType: FARGATE
       DeploymentConfiguration:
         MaximumPercent: 200
@@ -304,7 +280,7 @@ Resources:
           Subnets: !Ref PrivateSubnets
       TaskDefinition: !Ref "TaskDefinition"
       LoadBalancers:
-        - ContainerName: !Ref "ServiceName"
+        - ContainerName: av-adapter
           ContainerPort: 8080
           TargetGroupArn: !Ref "TargetGroup"
       ServiceRegistries:
@@ -333,7 +309,7 @@ Resources:
       Matcher:
         HttpCode: "200,401"
       TargetType: ip
-      Name: !Ref "ServiceName"
+      Name: av-adapter
       Port: 8080
       Protocol: HTTP
       UnhealthyThresholdCount: 2
@@ -350,9 +326,9 @@ Resources:
           Type: "forward"
       Conditions:
         - Field: path-pattern
-          Values: [!Ref "Path"]
+          Values: ["/api/*"]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
-      Priority: !Ref "Priority"
+      Priority: 2
 
 Outputs:
   AuthRunnerSecretArn:

@@ -26,24 +26,43 @@ Parameters:
   PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
     Description: "Private Subnets"
+  PublicSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: "Public Subnets"
   LogsRetention:
     Type: Number
     Default: 14
     Description: "Number of days that application logs are saved"
+  CertificateArn:
+    Type: String
+    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: "Route53 Hosted Zone Id"
+  LoadBalancerDomainName:
+    Type: String
+    Description: "Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)"
 
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
+          default: "Network configuration"
+        Parameters:
+          - Vpc
+          - PrivateSubnets
+          - PublicSubnets
+      - Label:
+          default: "DNS Config"
+        Parameters:
+          - CertificateArn
+          - HostedZoneId
+          - LoadBalancerDomainName
+      - Label:
           default: "Database configuration"
         Parameters:
           - DBClass
           - DBAllocatedStorage
-      - Label:
-          default: "ECS cluster configuration"
-        Parameters:
-          - Vpc
-          - PrivateSubnets
       - Label:
           default: "Other"
         Parameters:
@@ -73,7 +92,7 @@ Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: "RDS-Subnet-group"
+      DBSubnetGroupDescription: "AccurateVideo-DB-Subnet-group"
       SubnetIds: !Ref PrivateSubnets
       Tags:
         - Key: application
@@ -106,8 +125,6 @@ Resources:
       MasterUserPassword: !Sub "{{resolve:secretsmanager:${RDSInstanceSecret}::password}}"
       # MaxAllocatedStorage:
       MultiAZ: true
-      # PreferredBackupWindow: hh24:mi-hh24:mi
-      # PreferredMaintenanceWindow: ddd:hh24:mi-ddd:hh24:mi
       StorageEncrypted: true
       VPCSecurityGroups:
         - !GetAtt RdsDatabaseSG.GroupId
@@ -331,7 +348,7 @@ Resources:
 
   ######################## CloudWatch Log Group #######################
   #####################################################################
-  AVLogGroup:
+  LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: "accurate-video"
@@ -386,8 +403,6 @@ Resources:
       Topics:
         - !Ref FrontendSettingsUpdatedTopic
 
-# These are the values output by the CloudFormation template. Be careful
-# about changing any of them, because of them a
 Outputs:
   ConfigBucketName:
     Description: The name of the AV Config Bucket
@@ -397,13 +412,10 @@ Outputs:
     Value: !Ref "FrontendSettingsUpdatedTopic"
   LogGroup:
     Description: The name of the AV Log Group
-    Value: !Ref "AVLogGroup"
+    Value: !Ref "LogGroup"
   DBEndpoint:
     Description: The endpoint of the database
     Value: !GetAtt "DBInstance.Endpoint.Address"
-  PrivateNamespace:
-    Description: Private DNS namespace
-    Value: !Ref "PrivateDNSNamespace"
   RdsDatabaseSG:
     Description: Security group for the RDS instance
     Value: !Ref RdsDatabaseSG
@@ -422,9 +434,6 @@ Outputs:
   RDSInstanceSecretArn:
     Description: Secrets Manager Secret ARN for RDS instance
     Value: !Ref "RDSInstanceSecret"
-  ExternalUrl:
-    Description: The url of the external load balancer
-    Value: !Sub http://${PublicLoadBalancer.DNSName}
   PublicListener:
     Description: The ARN of the public load balancer's Listener
     Value: !Ref PublicLoadBalancerListenerHttps
