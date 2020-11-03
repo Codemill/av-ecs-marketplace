@@ -1,0 +1,368 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
+Parameters:
+  InfrastructureStackName:
+    Type: String
+    Default: av-infrastructure
+    Description:
+      The name of the parent Fargate networking stack that you created. Necessary
+      to locate and reference resources created by that stack.
+  ServiceName:
+    Type: String
+    Default: av-adapter
+    Description: A name for the service
+  ImageRepoName:
+    Type: String
+    Default: codemill-docker.jfrog.io/accurate-player/accurate-player-adapter-postgres
+    Description: The ecr repo and tag to use for image deployment
+  ImageTag:
+    Type: String
+    Default: 4.3.2
+    Description: The ecr repo and tag to use for image deployment
+  ContainerCpu:
+    Type: Number
+    Default: 256
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Default: 1024
+    Description: How much memory in megabytes to give the container
+  Path:
+    Type: String
+    Default: "/api/*"
+    Description: A path on the public load balancer that this service
+      should be connected to. Use * to send all load balancer
+      traffic to this service.
+  Priority:
+    Type: Number
+    Default: 2
+    Description: The priority for the routing rule added to the load balancer.
+      This only applies if your have multiple services which have been
+      assigned to different paths on the load balancer.
+  DesiredCount:
+    Type: Number
+    Default: 1
+    Description: How many copies of the service task to run
+  RegistryCredentials:
+    Type: String
+    Default: arn:aws:secretsmanager:eu-north-1:653767197116:secret:jfrog-docker-gitlabci-50X7p1
+    Description: Credentials to codemill.jfrog.io for pulling docker images
+  ApplicationTag:
+    Type: String
+    Default: "accurate-video"
+  Vpc:
+    Description: "VPC ID"
+    Type: AWS::EC2::VPC::Id
+  PrivateSubnets:
+    Description: "Private Subnets"
+    Type: List<AWS::EC2::Subnet::Id>
+  PublicLoadbalancerListenerArn:
+    Description: "Public Loadbalancer Listener Arn"
+    Type: String
+  ClusterName:
+    Description: "ECS cluster name"
+    Type: String
+    Default: av-cluster
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Service configuration"
+        Parameters:
+          - ServiceName
+          - ContainerCpu
+          - ContainerMemory
+          - DesiredCount
+          - Priority
+          - Path
+      - Label:
+          default: "Image configuration"
+        Parameters:
+          - ImageRepoName
+          - ImageTag
+          - RegistryCredentials
+      - Label:
+          default: "Other"
+        Parameters:
+          - InfrastructureStackName
+          - Vpc
+          - PrivateSubnets
+          - PublicLoadbalancerListenerArn
+          - ApplicationTag
+
+Resources:
+  AuthRunnerSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: "Auth Runner secret"
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "runner"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref "ServiceName"
+      Cpu: !Ref "ContainerCpu"
+      Memory: !Ref "ContainerMemory"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: !Ref "ServiceName"
+          Cpu: !Ref "ContainerCpu"
+          Memory: !Ref "ContainerMemory"
+          Image: !Sub ${ImageRepoName}:${ImageTag}
+          PortMappings:
+            - ContainerPort: 8080
+            - ContainerPort: 5701
+            - ContainerPort: 5699
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group:
+                Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: !Ref ServiceName
+          RepositoryCredentials:
+            CredentialsParameter: !Ref "RegistryCredentials"
+          Environment:
+            - Name: ACL_ENABLED
+              Value: "false"
+            - Name: ACL_STORAGE_ENABLED
+              Value: "false"
+            - Name: AUTH_ENABLED
+              Value: "true"
+            - Name: AUTH_FALLBACK_USERNAME
+              Value: "false"
+            - Name: AUTH_JWT_ENABLED
+              Value: "true"
+            - Name: AUTH_JWT_ISSUER
+              Value: "https://keycloak.codemill.cloud/auth/realms/av-dev"
+            - Name: AUTH_JWT_JWK_FILENAME
+              Value: "https://keycloak.codemill.cloud/auth/realms/av-dev/protocol/openid-connect/certs"
+            - Name: AUTH_JWT_USERNAME
+              Value: "preferred_username"
+            - Name: DELETION_PHYSICAL_FILE_ENABLED
+              Value: "false"
+            - Name: QUARKUS_DATASOURCE_DRIVER
+              Value: "org.postgresql.Driver"
+            - Name: QUARKUS_DATASOURCE_URL
+              Value: !Sub
+                - "jdbc:postgresql://${DBUrl}/${dbName}"
+                - DBUrl:
+                    Fn::ImportValue: !Sub ${InfrastructureStackName}:DBEndpoint
+                  dbName: "accurateVideo"
+            - Name: QUARKUS_FLYWAY_BASELINE-ON-MIGRATE
+              Value: "false"
+            - Name: QUARKUS_FLYWAY_MIGRATE-AT-START
+              Value: "false"
+            - Name: QUARKUS_HIBERNATE-ORM_DIALECT
+              Value: "org.hibernate.dialect.HSQLDialect"
+            - Name: QUARKUS_HIBERNATE-ORM_LOG_SQL
+              Value: "false"
+            - Name: QUARKUS_HTTP_CORS
+              Value: "true"
+            - Name: QUARKUS_LOG_LEVEL
+              Value: "INFO"
+            - Name: QUARKUS_SECURITY_USERS_FILE_ENABLED
+              Value: "false"
+            - Name: QUARKUS_VERTX_CLUSTER_HOST
+              Value: "0.0.0.0"
+            - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_HOST
+              Value: !Sub ${ServiceName}.av.local
+            - Name: QUARKUS_VERTX_CLUSTER_PORT
+              Value: "5699"
+            - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_PORT
+              Value: "5699"
+            - Name: HTTP_PATH_PREFIX
+              Value: "/api"
+            - Name: CLUSTER_XML
+              Value: "/opt/ecs-cluster.xml"
+            - Name: CLUSTER_NAME_REGEXP
+              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+            - Name: SERVICE_NAME_REGEXP
+              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/${ClusterName}/\\S+-(jobs|adapter)-\\S+"
+
+          Secrets:
+            - Name: QUARKUS_DATASOURCE_USERNAME
+              ValueFrom: !Sub
+                - "${RDSInstanceSecretArn}:username::"
+                - RDSInstanceSecretArn:
+                    Fn::ImportValue: !Sub ${InfrastructureStackName}:RDSInstanceSecretArn
+            - Name: QUARKUS_DATASOURCE_PASSWORD
+              ValueFrom: !Sub
+                - "${RDSInstanceSecretArn}:password::"
+                - RDSInstanceSecretArn:
+                    Fn::ImportValue: !Sub ${InfrastructureStackName}:RDSInstanceSecretArn
+            - Name: AUTH_RUNNER_USERNAME
+              ValueFrom: !Sub "${AuthRunnerSecret}:username::"
+            - Name: AUTH_RUNNER_PASSWORD
+              ValueFrom: !Sub "${AuthRunnerSecret}:password::"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  # This is a role which is used by the ECS tasks themselves.
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "secretsmanager:GetSecretValue"
+                Resource:
+                  - !Ref RegistryCredentials
+                  - Fn::ImportValue: !Sub ${InfrastructureStackName}:RDSInstanceSecretArn
+                  - !Ref AuthRunnerSecret
+              - Effect: Allow
+                Action:
+                  - "ecs:ListClusters"
+                  - "ecs:ListServices"
+                  - "ecs:ListTasks"
+                  - "ecs:DescribeTasks"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource:
+                  - !Sub
+                    - arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
+                    - LogGroupName:
+                        Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+              - Effect: Allow
+                Action:
+                  - "s3:ListBucket"
+                  - "s3:HeadObject"
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                NotResource:
+                  - !Sub
+                    - arn:aws:s3:::${ConfigBucketName}/*
+                    - ConfigBucketName:
+                        Fn::ImportValue: !Sub "${InfrastructureStackName}:ConfigBucketName"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  DiscoveryService:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Description: Discovery Service for the Demo Application
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 60
+            Type: A
+          - TTL: 60
+            Type: SRV
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: !Ref "ServiceName"
+      NamespaceId:
+        Fn::ImportValue: !Sub ${InfrastructureStackName}:PrivateDNSNamespace
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  # The service. The service is a resource which allows you to run multiple
+  # copies of a type of task, and gather up their logs and metrics, as well
+  # as monitor the number of running tasks and replace any that have crashed
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: LoadBalancerRule
+    Properties:
+      Cluster: !Ref ClusterName
+      LaunchType: FARGATE
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+      DesiredCount: !Ref "DesiredCount"
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - Fn::ImportValue: !Sub ${InfrastructureStackName}:AvAdapterSG
+          Subnets: !Ref PrivateSubnets
+      TaskDefinition: !Ref "TaskDefinition"
+      LoadBalancers:
+        - ContainerName: !Ref "ServiceName"
+          ContainerPort: 8080
+          TargetGroupArn: !Ref "TargetGroup"
+      ServiceRegistries:
+        - RegistryArn: !GetAtt DiscoveryService.Arn
+          Port: 8080
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  # A target group. This is used for keeping track of all the tasks, and
+  # what IP addresses / port numbers they have. You can query it yourself,
+  # to use the addresses yourself, but most often this target group is just
+  # connected to an application load balancer, or network load balancer, so
+  # it can automatically distribute traffic across all the targets.
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 120
+      HealthCheckPath: /api/asset
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 60
+      HealthyThresholdCount: 2
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "15"
+      Matcher:
+        HttpCode: "200,401"
+      TargetType: ip
+      Name: !Ref "ServiceName"
+      Port: 8080
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+  # Create a rule on the load balancer for routing traffic to the target group
+  LoadBalancerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref "TargetGroup"
+          Type: "forward"
+      Conditions:
+        - Field: path-pattern
+          Values: [!Ref "Path"]
+      ListenerArn: !Ref PublicLoadbalancerListenerArn
+      Priority: !Ref "Priority"
+
+Outputs:
+  AuthRunnerSecretArn:
+    Description: Secrets Manager Secret ARN for Auth Runner
+    Value: !Ref "AuthRunnerSecret"
+    Export:
+      Name: !Sub ${AWS::StackName}:AuthRunnerSecretArn
+
+  ServiceName:
+    Description: Service name
+    Value: !GetAtt "DiscoveryService.Name"
+    Export:
+      Name: !Sub ${AWS::StackName}:DiscoveryServiceName

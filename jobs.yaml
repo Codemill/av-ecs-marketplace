@@ -1,0 +1,315 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy a service on AWS Fargate, hosted in a private subnet
+Parameters:
+  InfrastructureStackName:
+    Type: String
+    Default: av-infrastructure
+    Description:
+      The name of the parent Fargate networking stack that you created. Necessary
+      to locate and reference resources created by that stack.
+  AdapterStackName:
+    Type: String
+    Default: av-adapter
+    Description: The name of the Adapter stack that you created. Necessary
+      to locate and reference resources created by that stack.
+  ServiceName:
+    Type: String
+    Default: av-jobs
+    Description: A name for the service
+  ImageRepoName:
+    Type: String
+    Default: codemill-docker.jfrog.io/accurate-player/accurate-video-jobs
+    Description: The docker image repo to use for image deployment
+  ImageTag:
+    Type: String
+    Default: 4.3.2
+    Description: The docker image tag to use for image deployment
+  RegistryCredentials:
+    Type: String
+    Default: arn:aws:secretsmanager:eu-north-1:653767197116:secret:jfrog-docker-gitlabci-50X7p1
+    Description: Credentials to codemill.jfrog.io for pulling docker images
+  ContainerCpu:
+    Type: Number
+    Default: 512
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Default: 1024
+    Description: How much memory in megabytes to give the container
+  DesiredCount:
+    Type: Number
+    Default: 2
+    Description: How many copies of the service task to run
+  ApplicationTag:
+    Type: String
+    Default: "accurate-video"
+    Description: Used to tag all resources
+  BlackFrameLocation:
+    Type: String
+    Default: "s3://av-black-frame-codemill/black25.mp4"
+    Description: Black frame file used
+  BlackFrameDuration:
+    Type: String
+    Default: "1200"
+    Description: Black frame duration
+  BlackFrameNumerator:
+    Type: String
+    Default: "25"
+    Description: Black frame numerator
+  BlackFrameDenominator:
+    Type: String
+    Default: "1"
+    Description: Black frame denominator
+  LowresTemplateId:
+    Type: String
+    Default: "standard_h264_follow"
+    Description: Low resolution template ID
+  AudioExtractTemplateId:
+    Type: String
+    Default: "wav"
+    Description: Audio extraction template ID
+  AwsRole:
+    Type: String
+    Default: ""
+    Description: IAM role that Elemental can use to access different media locations
+  ElementalQueue:
+    Type: String
+    Default: ""
+    Description: Will use default queue if not configured
+  PrivateSubnets:
+    Description: "Private Subnets"
+    Type: List<AWS::EC2::Subnet::Id>
+  ClusterName:
+    Description: "ECS cluster name"
+    Type: String
+    Default: av-cluster
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Service configuration"
+        Parameters:
+          - ServiceName
+          - ContainerCpu
+          - ContainerMemory
+          - DesiredCount
+      - Label:
+          default: "Image configuration"
+        Parameters:
+          - ImageRepoName
+          - ImageTag
+          - RegistryCredentials
+      - Label:
+          default: "Elemental configuration"
+        Parameters:
+          - BlackFrameLocation
+          - BlackFrameDuration
+          - BlackFrameNumerator
+          - BlackFrameDenominator
+          - LowresTemplateId
+          - AudioExtractTemplateId
+      - Label:
+          default: "Elemental configuration (optional)"
+        Parameters:
+          - AwsRole
+          - ElementalQueue
+      - Label:
+          default: "Other"
+        Parameters:
+          - InfrastructureStackName
+          - AdapterStackName
+          - ApplicationTag
+
+Conditions:
+  UseElementalAwsRole: !Not [!Equals [!Ref AwsRole, ""]]
+  UseElementalQueue: !Not [!Equals [!Ref ElementalQueue, ""]]
+
+Resources:
+  # The task definition. This is a simple metadata description of what
+  # container to run, and what resource requirements it has.
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref "ServiceName"
+      Cpu: !Ref "ContainerCpu"
+      Memory: !Ref "ContainerMemory"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: !Ref "ServiceName"
+          Cpu: !Ref "ContainerCpu"
+          Memory: !Ref "ContainerMemory"
+          Image: !Sub ${ImageRepoName}:${ImageTag}
+          RepositoryCredentials:
+            CredentialsParameter: !Ref "RegistryCredentials"
+          PortMappings:
+            - ContainerPort: 5701
+            - ContainerPort: 5699
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group:
+                Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: !Ref ServiceName
+          Environment:
+            - Name: QUARKUS_VERTX_CLUSTER_HOST
+              Value: "0.0.0.0"
+            - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_HOST
+              Value: !Sub ${ServiceName}.av.local
+            - Name: QUARKUS_VERTX_CLUSTER_PORT
+              Value: 5699
+            - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_PORT
+              Value: 5699
+            - Name: AV_RUNNER_BLACK_FRAME_LOCATION
+              Value: !Ref BlackFrameLocation
+            - Name: AV_RUNNER_BLACK_FRAME_DURATION
+              Value: !Ref BlackFrameDuration
+            - Name: AV_RUNNER_BLACK_FRAME_NUMERATOR
+              Value: !Ref BlackFrameNumerator
+            - Name: AV_RUNNER_BLACK_FRAME_DENOMINATOR
+              Value: !Ref BlackFrameDenominator
+            - Name: AV_RUNNER_LOWRES_TEMPLATE_ID
+              Value: !Ref LowresTemplateId
+            - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID
+              Value: !Ref AudioExtractTemplateId
+            - Name: AV_RUNNER_EXECUTOR_POLL_INTERVAL
+              Value: PT1M
+            - !If
+              - UseElementalQueue
+              - Name: AV_RUNNER_ELEMENTAL_QUEUE
+                Value: !Ref ElementalQueue
+              - !Ref AWS::NoValue
+            - !If
+              - UseElementalAwsRole
+              - Name: AV_RUNNER_AWS_ROLE
+                Value: !Ref AwsRole
+              - !Ref AWS::NoValue
+            - Name: AP_ADAPTER_URL_MP_REST_URL
+              Value: !Sub
+                - "http://${AdapterServiceName}.av.local:8080"
+                - AdapterServiceName:
+                    Fn::ImportValue: !Sub ${AdapterStackName}:DiscoveryServiceName
+            - Name: AV_RUNNER_BINDIR
+              Value: /usr/local/bin
+            - Name: CLUSTER_XML
+              Value: "/opt/ecs-cluster.xml"
+            - Name: CLUSTER_NAME_REGEXP
+              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+            - Name: SERVICE_NAME_REGEXP
+              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/${ClusterName}/\\S+-(jobs|adapter)-\\S+"
+          Secrets:
+            - Name: AP_ADAPTER_USERNAME
+              ValueFrom: !Sub
+                - "${AuthRunnerSecretArn}:username::"
+                - AuthRunnerSecretArn:
+                    Fn::ImportValue: !Sub ${AdapterStackName}:AuthRunnerSecretArn
+            - Name: AP_ADAPTER_PASSWORD
+              ValueFrom: !Sub
+                - "${AuthRunnerSecretArn}:password::"
+                - AuthRunnerSecretArn:
+                    Fn::ImportValue: !Sub ${AdapterStackName}:AuthRunnerSecretArn
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  # This is a role which is used by the ECS tasks themselves.
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "secretsmanager:GetSecretValue"
+                Resource:
+                  - !Ref RegistryCredentials
+                  - Fn::ImportValue: !Sub ${AdapterStackName}:AuthRunnerSecretArn
+              - Effect: Allow
+                Action:
+                  - "ecs:ListClusters"
+                  - "ecs:ListServices"
+                  - "ecs:ListTasks"
+                  - "ecs:DescribeTasks"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource:
+                  - !Sub
+                    - arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
+                    - LogGroupName:
+                        Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+              - Effect: Allow
+                Action:
+                  - "s3:ListBucket"
+                  - "s3:HeadObject"
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                NotResource:
+                  - !Sub
+                    - arn:aws:s3:::${ConfigBucketName}/*
+                    - ConfigBucketName:
+                        Fn::ImportValue: !Sub "${InfrastructureStackName}:ConfigBucketName"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  DiscoveryService:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Description: Discovery Service for the Demo Application
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 60
+            Type: A
+          - TTL: 60
+            Type: SRV
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: !Ref "ServiceName"
+      NamespaceId:
+        Fn::ImportValue: !Sub ${InfrastructureStackName}:PrivateDNSNamespace
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  # The service. The service is a resource which allows you to run multiple
+  # copies of a type of task, and gather up their logs and metrics, as well
+  # as monitor the number of running tasks and replace any that have crashed
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ClusterName
+      LaunchType: FARGATE
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+      DesiredCount: !Ref "DesiredCount"
+      ServiceRegistries:
+        - RegistryArn: !GetAtt DiscoveryService.Arn
+          Port: 5699
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - Fn::ImportValue: !Sub ${InfrastructureStackName}:AvJobsSG
+          Subnets: !Ref PrivateSubnets
+      TaskDefinition: !Ref "TaskDefinition"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag

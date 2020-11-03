@@ -1,0 +1,322 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
+Parameters:
+  InfrastructureStackName:
+    Type: String
+    Default: av-infrastructure
+    Description:
+      The name of the parent Fargate networking stack that you created. Necessary
+      to locate and reference resources created by that stack.
+  ServiceName:
+    Type: String
+    Default: av-frontend
+    Description: A name for the service
+  ImageRepoName:
+    Type: String
+    Default: codemill-docker.jfrog.io/accurate-player/accurate-player-qc
+    Description: The repo and tag to use for image deployment
+  ImageTag:
+    Type: String
+    Default: 4.3.2
+    Description: The ecr repo and tag to use for image deployment
+  ContainerCpu:
+    Type: Number
+    Default: 256
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Default: 512
+    Description: How much memory in megabytes to give the container
+  Path:
+    Type: String
+    Default: "*"
+    Description: A path on the public load balancer that this service
+      should be connected to. Use * to send all load balancer
+      traffic to this service.
+  Priority:
+    Type: Number
+    Default: 3
+    Description: The priority for the routing rule added to the load balancer.
+      This only applies if your have multiple services which have been
+      assigned to different paths on the load balancer.
+  DesiredCount:
+    Type: Number
+    Default: 2
+    Description: How many copies of the service task to run
+  RegistryCredentials:
+    Type: String
+    Default: arn:aws:secretsmanager:eu-north-1:653767197116:secret:jfrog-docker-gitlabci-50X7p1
+    Description: Credentials to codemill.jfrog.io for pulling docker images
+  ApplicationTag:
+    Type: String
+    Default: "accurate-video"
+  Vpc:
+    Description: "VPC ID"
+    Type: AWS::EC2::VPC::Id
+  PrivateSubnets:
+    Description: "Private Subnets"
+    Type: List<AWS::EC2::Subnet::Id>
+  PublicLoadbalancerListenerArn:
+    Description: "Public Loadbalancer Listener Arn"
+    Type: String
+  ClusterName:
+    Description: "ECS cluster name"
+    Type: String
+    Default: av-cluster
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Service configuration"
+        Parameters:
+          - ServiceName
+          - ContainerCpu
+          - ContainerMemory
+          - DesiredCount
+          - Priority
+          - Path
+      - Label:
+          default: "Image configuration"
+        Parameters:
+          - ImageRepoName
+          - ImageTag
+          - RegistryCredentials
+      - Label:
+          default: "Other"
+        Parameters:
+          - InfrastructureStackName
+          - ApplicationTag
+
+# The task definition. This is a simple metadata description of what
+# container to run, and what resource requirements it has.
+Resources:
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref "ServiceName"
+      Cpu: !Ref "ContainerCpu"
+      Memory: !Ref "ContainerMemory"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: !Ref "ServiceName"
+          Cpu: !Ref "ContainerCpu"
+          Memory: !Ref "ContainerMemory"
+          Image: !Sub ${ImageRepoName}:${ImageTag}
+          Command:
+            - !Sub
+              - |
+                apk add aws-cli; \
+                aws s3 cp s3://${ConfigBucketName}/frontend/settings.js /usr/share/nginx/html/assets/json/settings.js; \
+                aws s3 cp s3://${ConfigBucketName}/frontend/keycloak.json /usr/share/nginx/html/assets/json/keycloak.json; \
+                nginx -g 'daemon off;';
+              - ConfigBucketName:
+                  Fn::ImportValue: !Sub ${InfrastructureStackName}:ConfigBucketName
+          EntryPoint:
+            - "sh"
+            - "-c"
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group:
+                Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: !Ref ServiceName
+          RepositoryCredentials:
+            CredentialsParameter: !Ref "RegistryCredentials"
+          PortMappings:
+            - ContainerPort: 80
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  # This is a role which is used by the ECS tasks themselves.
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "secretsmanager:GetSecretValue"
+                Resource: !Ref RegistryCredentials
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource:
+                  - !Sub
+                    - arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
+                    - LogGroupName:
+                        Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+              - Effect: Allow
+                Action:
+                  - "s3:GetObject"
+                Resource:
+                  - !Sub
+                    - arn:aws:s3:::${ConfigBucketName}/*
+                    - ConfigBucketName:
+                        Fn::ImportValue: !Sub "${InfrastructureStackName}:ConfigBucketName"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  # The service. The service is a resource which allows you to run multiple
+  # copies of a type of task, and gather up their logs and metrics, as well
+  # as monitor the number of running tasks and replace any that have crashed
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: LoadBalancerRule
+    Properties:
+      Cluster: !Ref ClusterName
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+      DeploymentController:
+        Type: ECS
+      DesiredCount: !Ref "DesiredCount"
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: !Ref "ServiceName"
+          ContainerPort: 80
+          TargetGroupArn: !Ref "TargetGroup"
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - Fn::ImportValue: !Sub ${InfrastructureStackName}:AvFrontendSG
+          Subnets: !Ref PrivateSubnets
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+      TaskDefinition: !Ref "TaskDefinition"
+
+  # A target group. This is used for keeping track of all the tasks, and
+  # what IP addresses / port numbers they have. You can query it yourself,
+  # to use the addresses yourself, but most often this target group is just
+  # connected to an application load balancer, or network load balancer, so
+  # it can automatically distribute traffic across all the targets.
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 120
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 60
+      HealthyThresholdCount: 2
+      TargetType: ip
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "15"
+      Name: !Ref "ServiceName"
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  # Create a rule on the load balancer for routing traffic to the target group
+  LoadBalancerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref "TargetGroup"
+          Type: "forward"
+      Conditions:
+        - Field: path-pattern
+          Values: [!Ref "Path"]
+      ListenerArn: !Ref PublicLoadbalancerListenerArn
+      Priority: !Ref "Priority"
+
+  UpdateServiceLambdaFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        ZipFile: |
+          const AWS = require('aws-sdk');
+          const ecs = new AWS.ECS();
+          exports.handler = function(event, context, callback) {
+            var params = {
+              service: process.env.SERVICE_NAME,
+              cluster: process.env.CLUSTER_NAME,
+              forceNewDeployment: true
+            };
+            ecs.updateService(params, function(err, data) {
+              if (err) console.log(err, err.stack); // an error occurred
+              else     console.log(data);           // successful response
+            });
+          };
+      Environment:
+        Variables:
+          CLUSTER_NAME: !Ref ClusterName
+          SERVICE_NAME: !Ref Service
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs12.x
+      Timeout: 5
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  ConfigSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !GetAtt UpdateServiceLambdaFunction.Arn
+      Protocol: lambda
+      TopicArn:
+        Fn::ImportValue: !Sub "${InfrastructureStackName}:FrontendSettingsUpdatedTopicArn"
+
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref UpdateServiceLambdaFunction
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Fn::ImportValue: !Sub "${InfrastructureStackName}:FrontendSettingsUpdatedTopicArn"
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - ecs:UpdateService
+                Resource:
+                  - !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/${ClusterName}/${Service.Name}
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
