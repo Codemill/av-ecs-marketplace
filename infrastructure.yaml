@@ -437,3 +437,6 @@ Outputs:
   PublicListener:
     Description: The ARN of the public load balancer's Listener
     Value: !Ref PublicLoadBalancerListenerHttps
+  PrivateDNSNamespace:
+    Description: Private DNS Namespace
+    Value: !Ref PrivateDNSNamespace

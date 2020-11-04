@@ -1,0 +1,184 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Master template which will deploy infrastructure and services as nested stacks.
+
+Parameters:
+  Vpc:
+    Type: AWS::EC2::VPC::Id
+    Description: "VPC ID"
+  PrivateSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: "Private Subnets"
+  PublicSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: "Public Subnets"
+  DBClass:
+    Type: String
+    Default: db.t3.small
+    Description: Type of RDS instance
+  DBAllocatedStorage:
+    Type: String
+    Default: "5"
+    Description: Size of the database in GB
+  ApplicationTag:
+    Type: String
+    Default: "accurate-video"
+    Description: Used to tag all resources
+  LogsRetention:
+    Type: Number
+    Default: 14
+    Description: "Number of days that application logs are saved"
+  CertificateArn:
+    Type: String
+    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: "Route53 Hosted Zone Id"
+  LoadBalancerDomainName:
+    Type: String
+    Description: "Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)"
+
+Mappings:
+  Service:
+    Adapter:
+      ContainerCpu: 256
+      ContainerMemory: 1024
+      DesiredCount: 2
+      ImageRepoName: ""
+      ImageTag: ""
+    Analyze:
+      ContainerCpu: 256
+      ContainerMemory: 512
+      DesiredCount: 2
+      ImageRepoName: ""
+      ImageTag: ""
+      ApAnalyzeCacheDays:
+      ApAnalyzeCacheDir:
+      QuarkusHttpCors:
+    Jobs:
+      ContainerCpu: 512
+      ContainerMemory: 1024
+      DesiredCount: 2
+      ImageRepoName: ""
+      ImageTag: ""
+      BlackFrameLocation:
+      BlackFrameDuration:
+      BlackFrameNumerator:
+      BlackFrameDenominator:
+      LowresTemplateId:
+      AudioExtractTemplateId:
+      AwsRole:
+      ElementalQueue:
+    Frontend:
+      ContainerCpu: 256
+      ContainerMemory: 512
+      DesiredCount: 2
+      ImageRepoName: ""
+      ImageTag: ""
+
+Resources:
+  Infrastructure:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Vpc: !Ref Vpc
+        PrivateSubnets: !Ref PrivateSubnets
+        PublicSubnets: !Ref PublicSubnets
+        CertificateArn: !Ref CertificateArn
+        HostedZoneId: !Ref HostedZoneId
+        LoadBalancerDomainName: !Ref LoadBalancerDomainName
+        DBClass: !Ref DBClass
+        DBAllocatedStorage: !Ref DBAllocatedStorage
+        ApplicationTag: !Ref ApplicationTag
+        LogsRetention: !Ref LogsRetention
+      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TimeoutInMinutes: 30
+
+  Adapter:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Vpc: !Ref Vpc
+        PrivateSubnets: !Ref PrivateSubnets
+        ImageRepoName: !FindInMap [Service, Adapter, ImageRepoName]
+        ImageTag: !FindInMap [Service, Adapter, ImageTag]
+        ContainerCpu: !FindInMap [Service, Adapter, ContainerCpu]
+        ContainerMemory: !FindInMap [Service, Adapter, ContainerMemory]
+        DesiredCount: !FindInMap [Service, Adapter, DesiredCount]
+        PublicLoadbalancerListenerArn: !GetAtt Infrastructure.Outputs.PublicListener
+        RDSInstanceSecretArn: !GetAtt Infrastructure.Outputs.RDSInstanceSecretArn
+        LogGroupName: !GetAtt Infrastructure.Outputs.LogGroup
+        PrivateDNSNamespace: !GetAtt Infrastructure.Outputs.PrivateDNSNamespace
+        RdsDbEndpoint: !GetAtt Infrastructure.Outputs.DBEndpoint
+        AdapterSG: !GetAtt Infrastructure.Outputs.AvAdapterSG
+        ApplicationTag: !Ref ApplicationTag
+      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TimeoutInMinutes: 30
+
+  Frontend:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Vpc: !Ref Vpc
+        PrivateSubnets: !Ref PrivateSubnets
+        ImageRepoName: !FindInMap [Service, Frondend, ImageRepoName]
+        ImageTag: !FindInMap [Service, Frondend, ImageTag]
+        ContainerCpu: !FindInMap [Service, Frontend, ContainerCpu]
+        ContainerMemory: !FindInMap [Service, Frontend, ContainerMemory]
+        DesiredCount: !FindInMap [Service, Frontend, DesiredCount]
+        ApplicationTag: !Ref ApplicationTag
+        PublicLoadbalancerListenerArn: !GetAtt Infrastructure.Outputs.PublicListener
+        FrontendSettingsUpdatedTopicArn: !GetAtt Infrastructure.Outputs.FrontendSettingsUpdatedTopicArn
+        ConfigBucketName: !GetAtt Infrastructure.Outputs.ConfigBucketName
+        LogGroupName: !GetAtt Infrastructure.Outputs.LogGroup
+        FrontendSG: !GetAtt Infrastructure.Outputs.AvFrontendSG
+      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TimeoutInMinutes: 30
+
+  Analyze:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Vpc: !Ref Vpc
+        PrivateSubnets: !Ref PrivateSubnets
+        ImageRepoName: !FindInMap [Service, Analyze, ImageRepoName]
+        ImageTag: !FindInMap [Service, Analyze, ImageTag]
+        ContainerCpu: !FindInMap [Service, Analyze, ContainerCpu]
+        ContainerMemory: !FindInMap [Service, Analyze, ContainerMemory]
+        DesiredCount: !FindInMap [Service, Analyze, DesiredCount]
+        ApplicationTag: !Ref ApplicationTag
+        ApAnalyzeCacheDays: !FindInMap [Service, Analyze, ApAnalyzeCacheDays]
+        ApAnalyzeCacheDir: !FindInMap [Service, Analyze, ApAnalyzeCacheDir]
+        QuarkusHttpCors: !FindInMap [Service, Analyze, QuarkusHttpCors]
+        PublicLoadbalancerListenerArn: !GetAtt Infrastructure.Outputs.PublicListener
+        LogGroupName: !GetAtt Infrastructure.Outputs.LogGroup
+        AnalyzeSG: !GetAtt Infrastructure.Outputs.AvAnalyzeSG
+        PrivateDNSNamespace: !GetAtt Infrastructure.Outputs.PrivateDNSNamespace
+      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TimeoutInMinutes: 30
+  
+  Jobs:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        PrivateSubnets: !Ref PrivateSubnets
+        ImageRepoName: !FindInMap [Service, Jobs, ImageRepoName]
+        ImageTag: !FindInMap [Service, Jobs, ImageTag]
+        ContainerCpu: !FindInMap [Service, Jobs, ContainerCpu]
+        ContainerMemory: !FindInMap [Service, Jobs, ContainerMemory]
+        DesiredCount: !FindInMap [Service, Jobs, DesiredCount]
+        ApplicationTag: !Ref ApplicationTag
+        BlackFrameLocation: !FindInMap [Service, Jobs, BlackFrameLocation]
+        BlackFrameDuration: !FindInMap [Service, Jobs, BlackFrameDuration]
+        BlackFrameNumerator: !FindInMap [Service, Jobs, BlackFrameNumerator]
+        BlackFrameDenominator: !FindInMap [Service, Jobs, BlackFrameDenominator]
+        LowresTemplateId: !FindInMap [Service, Jobs, LowresTemplateId]
+        AudioExtractTemplateId: !FindInMap [Service, Jobs, AudioExtractTemplateId]
+        AwsRole: !FindInMap [Service, Jobs, AwsRole]
+        ElementalQueue: !FindInMap [Service, Jobs, ElementalQueue]
+        LogGroupName: !GetAtt Infrastructure.Outputs.LogGroup
+        JobsSG: !GetAtt Infrastructure.Outputs.AvJobsSG
+        AuthRunnerSecretArn: !GetAtt Adapter.Outputs.AuthRunnerSecretArn
+        PrivateDNSNamespace: !GetAtt Infrastructure.Outputs.PrivateDNSNamespace
+        AdapterServiceName: !GetAtt Adapter.Outputs.ServiceName
+      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TimeoutInMinutes: 30
