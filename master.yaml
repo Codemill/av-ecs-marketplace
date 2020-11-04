@@ -1,20 +1,30 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Master template which will deploy infrastructure and services as nested stacks.
+Description: >
+  Master template which will deploy infrastructure and services as nested stacks.
 
 Parameters:
+  TemplatesS3Bucket:
+    Description: The S3 bucket containing the CloudFormation templates
+    Type: String
+    Default: https://s3-eu-north-1.amazonaws.com/<BUCKET_NAME>
   Vpc:
     Type: AWS::EC2::VPC::Id
-    Description: "VPC ID"
+    Description: "The VPC which AccurateVideo will be deployed in"
   PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: "Private Subnets"
+    Description: "The Private Subnets which the ECS Services and RDS Database will be deployed in"
   PublicSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: "Public Subnets"
+    Description: "The Public Subnets which the Application Load Balancer will be deployed in"
   DBClass:
     Type: String
     Default: db.t3.small
-    Description: Type of RDS instance
+    AllowedValues:
+      - db.t3.micro
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+    Description: The RDS Database class to use
   DBAllocatedStorage:
     Type: String
     Default: "5"
@@ -37,6 +47,55 @@ Parameters:
     Type: String
     Description: "Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)"
 
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Network configuration"
+        Parameters:
+          - Vpc
+          - PrivateSubnets
+          - PublicSubnets
+      - Label:
+          default: "Database configuration"
+        Parameters:
+          - DBClass
+          - DBAllocatedStorage
+      - Label:
+          default: "DNS configuration"
+        Parameters:
+          - CertificateArn
+          - HostedZoneId
+          - LoadBalancerDomainName
+      - Label:
+          default: "Other configuration"
+        Parameters:
+          - ApplicationTag
+          - LogsRetention
+          - TemplatesS3Bucket
+
+    ParameterLabels:
+      Vpc:
+        default: "VPC ID"
+      PrivateSubnets:
+        default: "Private Subnets"
+      PublicSubnets:
+        default: "Public Subnets"
+      DBClass:
+        default: "Instance Type"
+      DBAllocatedStorage:
+        default: "Database Size"
+      CertificateArn:
+        default: "Certificate Arn"
+      HostedZoneId:
+        default: "HostedZone ID"
+      LoadBalancerDomainName:
+        default: "Load Balancer Domain Name"
+      ApplicationTag:
+        default: "Application Tag"
+      LogsRetention:
+        default: "Application Logs Retention"
+
 Mappings:
   Service:
     Adapter:
@@ -51,23 +110,23 @@ Mappings:
       DesiredCount: 2
       ImageRepoName: ""
       ImageTag: ""
-      ApAnalyzeCacheDays:
-      ApAnalyzeCacheDir:
-      QuarkusHttpCors:
+      ApAnalyzeCacheDays: ""
+      ApAnalyzeCacheDir: ""
+      QuarkusHttpCors: ""
     Jobs:
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 2
       ImageRepoName: ""
       ImageTag: ""
-      BlackFrameLocation:
-      BlackFrameDuration:
-      BlackFrameNumerator:
-      BlackFrameDenominator:
-      LowresTemplateId:
-      AudioExtractTemplateId:
-      AwsRole:
-      ElementalQueue:
+      BlackFrameLocation: ""
+      BlackFrameDuration: ""
+      BlackFrameNumerator: ""
+      BlackFrameDenominator: ""
+      LowresTemplateId: ""
+      AudioExtractTemplateId: ""
+      AwsRole: ""
+      ElementalQueue: ""
     Frontend:
       ContainerCpu: 256
       ContainerMemory: 512
@@ -120,8 +179,8 @@ Resources:
       Parameters:
         Vpc: !Ref Vpc
         PrivateSubnets: !Ref PrivateSubnets
-        ImageRepoName: !FindInMap [Service, Frondend, ImageRepoName]
-        ImageTag: !FindInMap [Service, Frondend, ImageTag]
+        ImageRepoName: !FindInMap [Service, Frontend, ImageRepoName]
+        ImageTag: !FindInMap [Service, Frontend, ImageTag]
         ContainerCpu: !FindInMap [Service, Frontend, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Frontend, ContainerMemory]
         DesiredCount: !FindInMap [Service, Frontend, DesiredCount]
