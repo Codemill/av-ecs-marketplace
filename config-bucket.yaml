@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Master template which will deploy infrastructure and services as nested stacks.
+Description: Configuration bucket with notification event on configuration file changes. 
+             Custom lambda will create initial settings.js file.
 
 Parameters:
   ApplicationTag:
