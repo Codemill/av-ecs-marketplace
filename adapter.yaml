@@ -1,12 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
 Parameters:
-  InfrastructureStackName:
-    Type: String
-    Default: av-infrastructure
-    Description:
-      The name of the parent Fargate networking stack that you created. Necessary
-      to locate and reference resources created by that stack.
   ImageRepoName:
     Type: String
     Default: codemill-docker.jfrog.io/accurate-player/accurate-player-adapter-postgres
@@ -27,9 +21,6 @@ Parameters:
     Type: Number
     Default: 1
     Description: How many copies of the service task to run
-  RegistryCredentials:
-    Type: String
-    Description: Credentials to codemill.jfrog.io for pulling docker images
   ApplicationTag:
     Type: String
     Default: "accurate-video"
@@ -42,6 +33,21 @@ Parameters:
   PublicLoadbalancerListenerArn:
     Type: String
     Description: "Public Loadbalancer Listener Arn"
+  RDSInstanceSecretArn:
+    Type: String
+    Description: "RDS Secrets Manager Arn"
+  LogGroupName:
+    Type: String
+    Description: "CloudWatch Log Group Name"
+  PrivateDNSNamespace:
+    Type: String
+    Description: "Private DNS Namespace"
+  RdsDbEndpoint:
+    Type: String
+    Description: "RDS Database Endpoint"
+  AdapterSG:
+    Type: AWS::EC2::SecurityGroup::GroupName
+    Description: "Adapter Security Group"
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -52,19 +58,22 @@ Metadata:
           - ContainerCpu
           - ContainerMemory
           - DesiredCount
+          - Vpc
+          - PrivateSubnets
+          - PublicLoadbalancerListenerArn
+          - RDSInstanceSecretArn
+          - LogGroupName
+          - PrivateDNSNamespace
+          - RdsDbEndpoint
+          - AdapterSG
       - Label:
           default: "Image configuration"
         Parameters:
           - ImageRepoName
           - ImageTag
-          - RegistryCredentials
       - Label:
           default: "Other"
         Parameters:
-          - InfrastructureStackName
-          - Vpc
-          - PrivateSubnets
-          - PublicLoadbalancerListenerArn
           - ApplicationTag
 
 Resources:
@@ -104,12 +113,9 @@ Resources:
           LogConfiguration:
             LogDriver: "awslogs"
             Options:
-              awslogs-group:
-                Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+              awslogs-group: !Ref LogGroupName
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-adapter
-          RepositoryCredentials:
-            CredentialsParameter: !Ref "RegistryCredentials"
           Environment:
             - Name: ACL_ENABLED
               Value: "false"
@@ -132,11 +138,7 @@ Resources:
             - Name: QUARKUS_DATASOURCE_DRIVER
               Value: "org.postgresql.Driver"
             - Name: QUARKUS_DATASOURCE_URL
-              Value: !Sub
-                - "jdbc:postgresql://${DBUrl}/${dbName}"
-                - DBUrl:
-                    Fn::ImportValue: !Sub ${InfrastructureStackName}:DBEndpoint
-                  dbName: "accurateVideo"
+              Value: !Sub "jdbc:postgresql://${RdsDbEndpoint}/accurateVideo"
             - Name: QUARKUS_FLYWAY_BASELINE-ON-MIGRATE
               Value: "false"
             - Name: QUARKUS_FLYWAY_MIGRATE-AT-START
@@ -167,18 +169,11 @@ Resources:
               Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video"
             - Name: SERVICE_NAME_REGEXP
               Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+"
-
           Secrets:
             - Name: QUARKUS_DATASOURCE_USERNAME
-              ValueFrom: !Sub
-                - "${RDSInstanceSecretArn}:username::"
-                - RDSInstanceSecretArn:
-                    Fn::ImportValue: !Sub ${InfrastructureStackName}:RDSInstanceSecretArn
+              ValueFrom: !Sub "${RDSInstanceSecretArn}:username::"
             - Name: QUARKUS_DATASOURCE_PASSWORD
-              ValueFrom: !Sub
-                - "${RDSInstanceSecretArn}:password::"
-                - RDSInstanceSecretArn:
-                    Fn::ImportValue: !Sub ${InfrastructureStackName}:RDSInstanceSecretArn
+              ValueFrom: !Sub "${RDSInstanceSecretArn}:password::"
             - Name: AUTH_RUNNER_USERNAME
               ValueFrom: !Sub "${AuthRunnerSecret}:username::"
             - Name: AUTH_RUNNER_PASSWORD
@@ -198,6 +193,8 @@ Resources:
               Service: [ecs-tasks.amazonaws.com]
             Action: ["sts:AssumeRole"]
       Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSMarketplaceMeteringRegisterUsage
       Policies:
         - PolicyName: AmazonECSTaskExecutionRolePolicy
           PolicyDocument:
@@ -206,8 +203,7 @@ Resources:
                 Action:
                   - "secretsmanager:GetSecretValue"
                 Resource:
-                  - !Ref RegistryCredentials
-                  - Fn::ImportValue: !Sub ${InfrastructureStackName}:RDSInstanceSecretArn
+                  - !Ref RDSInstanceSecretArn
                   - !Ref AuthRunnerSecret
               - Effect: Allow
                 Action:
@@ -218,24 +214,28 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action:
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:BatchGetImage"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:GetAuthorizationToken"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "aws-marketplace:RegisterUsage"
+                Resource: "*"
+              - Effect: Allow
+                Action:
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
                 Resource:
-                  - !Sub
-                    - arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
-                    - LogGroupName:
-                        Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
               - Effect: Allow
                 Action:
                   - "s3:ListBucket"
                   - "s3:HeadObject"
                   - "s3:GetObject"
                   - "s3:PutObject"
-                NotResource:
-                  - !Sub
-                    - arn:aws:s3:::${ConfigBucketName}/*
-                    - ConfigBucketName:
-                        Fn::ImportValue: !Sub "${InfrastructureStackName}:ConfigBucketName"
+                Resource: "*"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -254,8 +254,7 @@ Resources:
       HealthCheckCustomConfig:
         FailureThreshold: 1
       Name: av-adapter
-      NamespaceId:
-        Fn::ImportValue: !Sub ${InfrastructureStackName}:PrivateDNSNamespace
+      NamespaceId: !Ref PrivateDNSNamespace
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -276,7 +275,7 @@ Resources:
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
-            - Fn::ImportValue: !Sub ${InfrastructureStackName}:AvAdapterSG
+            - !Ref AdapterSG
           Subnets: !Ref PrivateSubnets
       TaskDefinition: !Ref "TaskDefinition"
       LoadBalancers:
@@ -334,11 +333,7 @@ Outputs:
   AuthRunnerSecretArn:
     Description: Secrets Manager Secret ARN for Auth Runner
     Value: !Ref "AuthRunnerSecret"
-    Export:
-      Name: !Sub ${AWS::StackName}:AuthRunnerSecretArn
 
   ServiceName:
     Description: Service name
     Value: !GetAtt "DiscoveryService.Name"
-    Export:
-      Name: !Sub ${AWS::StackName}:DiscoveryServiceName

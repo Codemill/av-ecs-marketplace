@@ -27,22 +27,30 @@ Parameters:
     Type: Number
     Default: 2
     Description: How many copies of the service task to run
-  RegistryCredentials:
-    Type: String
-    Description: Credentials to codemill.jfrog.io for pulling docker images
   ApplicationTag:
     Type: String
     Default: "accurate-video"
   Vpc:
-    Description: "VPC ID"
     Type: AWS::EC2::VPC::Id
+    Description: "VPC ID"
   PrivateSubnets:
-    Description: "Private Subnets"
     Type: List<AWS::EC2::Subnet::Id>
+    Description: "Private Subnets"
   PublicLoadbalancerListenerArn:
-    Description: "Public Loadbalancer Listener Arn"
     Type: String
-
+    Description: "Public Loadbalancer Listener Arn"
+  FrontendSettingsUpdatedTopicArn:
+    Type: String
+    Description: "Frontend Settings-updated Topic Arn"
+  ConfigBucketName:
+    Type: String
+    Description: "S3 Config bucket name"
+  LogGroupName:
+    Type: String
+    Description: "CloudWatch Log Group Name"
+  FrontendSG:
+    Type: AWS::EC2::SecurityGroup::GroupName
+    Description: "Frontend Security Group"
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -52,12 +60,14 @@ Metadata:
           - ContainerCpu
           - ContainerMemory
           - DesiredCount
+          - Vpc
+          - PrivateSubnets
+          - PublicLoadbalancerListenerArn
       - Label:
           default: "Image configuration"
         Parameters:
           - ImageRepoName
           - ImageTag
-          - RegistryCredentials
       - Label:
           default: "Other"
         Parameters:
@@ -84,26 +94,20 @@ Resources:
           Memory: !Ref "ContainerMemory"
           Image: !Sub ${ImageRepoName}:${ImageTag}
           Command:
-            - !Sub
-              - |
+            - !Sub |
                 apk add aws-cli; \
                 aws s3 cp s3://${ConfigBucketName}/frontend/settings.js /usr/share/nginx/html/assets/json/settings.js; \
                 aws s3 cp s3://${ConfigBucketName}/frontend/keycloak.json /usr/share/nginx/html/assets/json/keycloak.json; \
                 nginx -g 'daemon off;';
-              - ConfigBucketName:
-                  Fn::ImportValue: !Sub ${InfrastructureStackName}:ConfigBucketName
           EntryPoint:
             - "sh"
             - "-c"
           LogConfiguration:
             LogDriver: "awslogs"
             Options:
-              awslogs-group:
-                Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+              awslogs-group: LogGroup
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-frontend
-          RepositoryCredentials:
-            CredentialsParameter: !Ref "RegistryCredentials"
           PortMappings:
             - ContainerPort: 80
       Tags:
@@ -127,25 +131,22 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - "secretsmanager:GetSecretValue"
-                Resource: !Ref RegistryCredentials
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:BatchGetImage"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:GetAuthorizationToken"
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
                 Resource:
-                  - !Sub
-                    - arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
-                    - LogGroupName:
-                        Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
               - Effect: Allow
                 Action:
                   - "s3:GetObject"
                 Resource:
-                  - !Sub
-                    - arn:aws:s3:::${ConfigBucketName}/*
-                    - ConfigBucketName:
-                        Fn::ImportValue: !Sub "${InfrastructureStackName}:ConfigBucketName"
+                  - !Sub arn:aws:s3:::${ConfigBucketName}/*
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -172,7 +173,7 @@ Resources:
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
-            - Fn::ImportValue: !Sub ${InfrastructureStackName}:AvFrontendSG
+            - !Ref FrontendSG
           Subnets: !Ref PrivateSubnets
       Tags:
         - Key: application
@@ -253,8 +254,7 @@ Resources:
     Properties:
       Endpoint: !GetAtt UpdateServiceLambdaFunction.Arn
       Protocol: lambda
-      TopicArn:
-        Fn::ImportValue: !Sub "${InfrastructureStackName}:FrontendSettingsUpdatedTopicArn"
+      TopicArn: !Ref FrontendSettingsUpdatedTopicArn
 
   LambdaPermission:
     Type: AWS::Lambda::Permission
@@ -262,8 +262,7 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref UpdateServiceLambdaFunction
       Principal: sns.amazonaws.com
-      SourceArn:
-        Fn::ImportValue: !Sub "${InfrastructureStackName}:FrontendSettingsUpdatedTopicArn"
+      SourceArn: !Ref FrontendSettingsUpdatedTopicArn
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role

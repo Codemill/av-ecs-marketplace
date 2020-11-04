@@ -15,9 +15,6 @@ Parameters:
     Type: String
     Default: 1.2.2
     Description: The ecr repo and tag to use for image deployment
-  RegistryCredentials:
-    Type: String
-    Description: Credentials to codemill.jfrog.io for pulling docker images
   ContainerCpu:
     Type: Number
     Default: 256
@@ -54,7 +51,15 @@ Parameters:
   PublicLoadbalancerListenerArn:
     Type: String
     Description: "Public Loadbalancer Listener Arn"
-
+  LogGroupName:
+    Type: String
+    Description: "CloudWatch Log Group Name"
+  AnalyzeSG:
+    Type: AWS::EC2::SecurityGroup::GroupName
+    Description: "Analyze Security Group"
+  PrivateDNSNamespace:
+    Type: String
+    Description: "Private DNS Namespace"
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -64,12 +69,14 @@ Metadata:
           - ContainerCpu
           - ContainerMemory
           - DesiredCount
+          - Vpc
+          - PrivateSubnets
+          - PublicLoadbalancerListenerArn
       - Label:
           default: "Image configuration"
         Parameters:
           - ImageRepoName
           - ImageTag
-          - RegistryCredentials
       - Label:
           default: "...configuration"
         Parameters:
@@ -81,9 +88,6 @@ Metadata:
         Parameters:
           - InfrastructureStackName
           - ApplicationTag
-          - Vpc
-          - PrivateSubnets
-          - PublicLoadbalancerListenerArn
 
 Resources:
   TaskDefinition:
@@ -102,8 +106,6 @@ Resources:
           Cpu: !Ref "ContainerCpu"
           Memory: !Ref "ContainerMemory"
           Image: !Sub ${ImageRepoName}:${ImageTag}
-          RepositoryCredentials:
-            CredentialsParameter: !Ref "RegistryCredentials"
           PortMappings:
             - ContainerPort: 8080
             - ContainerPort: 5700
@@ -117,8 +119,7 @@ Resources:
           LogConfiguration:
             LogDriver: "awslogs"
             Options:
-              awslogs-group:
-                Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+              awslogs-group: !Ref LogGroupName
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-analyze
           WorkingDirectory: "/opt/"
@@ -152,28 +153,24 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - "secretsmanager:GetSecretValue"
-                Resource: !Ref RegistryCredentials
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:BatchGetImage"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:GetAuthorizationToken"
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
                 Resource:
-                  - !Sub
-                    - arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
-                    - LogGroupName:
-                        Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
               - Effect: Allow
                 Action:
                   - "s3:ListBucket"
                   - "s3:HeadObject"
                   - "s3:GetObject"
                   - "s3:PutObject"
-                NotResource:
-                  - !Sub
-                    - arn:aws:s3:::${ConfigBucketName}/*
-                    - ConfigBucketName:
-                        Fn::ImportValue: !Sub "${InfrastructureStackName}:ConfigBucketName"
+                Resource: "*"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -195,8 +192,7 @@ Resources:
       HealthCheckCustomConfig:
         FailureThreshold: 1
       Name: av-analyze
-      NamespaceId:
-        Fn::ImportValue: !Sub ${InfrastructureStackName}:PrivateDNSNamespace
+      NamespaceId: !Ref PrivateDNSNamespace
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -217,7 +213,7 @@ Resources:
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
-            - Fn::ImportValue: !Sub ${InfrastructureStackName}:AvAnalyzeSG
+            - !Ref AnalyzeSG
           Subnets: !Ref PrivateSubnets
       TaskDefinition: !Ref "TaskDefinition"
       LoadBalancers:

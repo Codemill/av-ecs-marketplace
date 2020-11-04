@@ -20,9 +20,6 @@ Parameters:
     Type: String
     Default: 4.3.2
     Description: The docker image tag to use for image deployment
-  RegistryCredentials:
-    Type: String
-    Description: Credentials to codemill.jfrog.io for pulling docker images
   ContainerCpu:
     Type: Number
     Default: 512
@@ -72,9 +69,23 @@ Parameters:
     Default: ""
     Description: Will use default queue if not configured
   PrivateSubnets:
-    Description: "Private Subnets"
     Type: List<AWS::EC2::Subnet::Id>
-
+    Description: "Private Subnets"
+  LogGroupName:
+    Type: String
+    Description: "CloudWatch Log Group Name"
+  JobsSG:
+    Type: AWS::EC2::SecurityGroup::GroupName
+    Description: "Jobs Security Group"
+  AuthRunnerSecretArn:
+    Type: String
+    Description: "Auth Runner Secrets Manager Arn"
+  PrivateDNSNamespace:
+    Type: String
+    Description: "Private DNS Namespace"
+  AdapterServiceName:
+    Type: String
+    Description: "Adapter Service Name"
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -84,12 +95,12 @@ Metadata:
           - ContainerCpu
           - ContainerMemory
           - DesiredCount
+          - PrivateSubnets
       - Label:
           default: "Image configuration"
         Parameters:
           - ImageRepoName
           - ImageTag
-          - RegistryCredentials
       - Label:
           default: "Elemental configuration"
         Parameters:
@@ -134,16 +145,13 @@ Resources:
           Cpu: !Ref "ContainerCpu"
           Memory: !Ref "ContainerMemory"
           Image: !Sub ${ImageRepoName}:${ImageTag}
-          RepositoryCredentials:
-            CredentialsParameter: !Ref "RegistryCredentials"
           PortMappings:
             - ContainerPort: 5701
             - ContainerPort: 5699
           LogConfiguration:
             LogDriver: "awslogs"
             Options:
-              awslogs-group:
-                Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+              awslogs-group: !Ref LogGroupName
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-jobs
           Environment:
@@ -180,10 +188,7 @@ Resources:
                 Value: !Ref AwsRole
               - !Ref AWS::NoValue
             - Name: AP_ADAPTER_URL_MP_REST_URL
-              Value: !Sub
-                - "http://${AdapterServiceName}.av.local:8080"
-                - AdapterServiceName:
-                    Fn::ImportValue: !Sub ${AdapterStackName}:DiscoveryServiceName
+              Value: !Sub "http://${AdapterServiceName}.av.local:8080"
             - Name: AV_RUNNER_BINDIR
               Value: /usr/local/bin
             - Name: CLUSTER_XML
@@ -194,15 +199,9 @@ Resources:
               Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+"
           Secrets:
             - Name: AP_ADAPTER_USERNAME
-              ValueFrom: !Sub
-                - "${AuthRunnerSecretArn}:username::"
-                - AuthRunnerSecretArn:
-                    Fn::ImportValue: !Sub ${AdapterStackName}:AuthRunnerSecretArn
+              ValueFrom: !Sub "${AuthRunnerSecretArn}:username::"
             - Name: AP_ADAPTER_PASSWORD
-              ValueFrom: !Sub
-                - "${AuthRunnerSecretArn}:password::"
-                - AuthRunnerSecretArn:
-                    Fn::ImportValue: !Sub ${AdapterStackName}:AuthRunnerSecretArn
+              ValueFrom: !Sub "${AuthRunnerSecretArn}:password::"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -226,8 +225,7 @@ Resources:
                 Action:
                   - "secretsmanager:GetSecretValue"
                 Resource:
-                  - !Ref RegistryCredentials
-                  - Fn::ImportValue: !Sub ${AdapterStackName}:AuthRunnerSecretArn
+                  - !Ref AuthRunnerSecretArn
               - Effect: Allow
                 Action:
                   - "ecs:ListClusters"
@@ -237,24 +235,24 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action:
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:BatchGetImage"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:GetAuthorizationToken"
+                Resource: "*"
+              - Effect: Allow
+                Action:
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
                 Resource:
-                  - !Sub
-                    - arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
-                    - LogGroupName:
-                        Fn::ImportValue: !Sub ${InfrastructureStackName}:AVLogGroup
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
               - Effect: Allow
                 Action:
                   - "s3:ListBucket"
                   - "s3:HeadObject"
                   - "s3:GetObject"
                   - "s3:PutObject"
-                NotResource:
-                  - !Sub
-                    - arn:aws:s3:::${ConfigBucketName}/*
-                    - ConfigBucketName:
-                        Fn::ImportValue: !Sub "${InfrastructureStackName}:ConfigBucketName"
+                Resource: "*"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -273,8 +271,7 @@ Resources:
       HealthCheckCustomConfig:
         FailureThreshold: 1
       Name: av-jobs
-      NamespaceId:
-        Fn::ImportValue: !Sub ${InfrastructureStackName}:PrivateDNSNamespace
+      NamespaceId: !Ref PrivateDNSNamespace
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -297,7 +294,7 @@ Resources:
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
-            - Fn::ImportValue: !Sub ${InfrastructureStackName}:AvJobsSG
+            - !Ref JobsSG
           Subnets: !Ref PrivateSubnets
       TaskDefinition: !Ref "TaskDefinition"
       Tags:
