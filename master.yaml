@@ -76,7 +76,7 @@ Mappings:
       ImageTag: ""
 
 Resources:
-  Infrastructure:
+  InfrastructureStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
@@ -93,7 +93,7 @@ Resources:
       TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
       TimeoutInMinutes: 30
 
-  Adapter:
+  AdapterStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
@@ -104,17 +104,17 @@ Resources:
         ContainerCpu: !FindInMap [Service, Adapter, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Adapter, ContainerMemory]
         DesiredCount: !FindInMap [Service, Adapter, DesiredCount]
-        PublicLoadbalancerListenerArn: !GetAtt Infrastructure.Outputs.PublicListener
-        RDSInstanceSecretArn: !GetAtt Infrastructure.Outputs.RDSInstanceSecretArn
-        LogGroupName: !GetAtt Infrastructure.Outputs.LogGroup
-        PrivateDNSNamespace: !GetAtt Infrastructure.Outputs.PrivateDNSNamespace
-        RdsDbEndpoint: !GetAtt Infrastructure.Outputs.DBEndpoint
-        AdapterSG: !GetAtt Infrastructure.Outputs.AvAdapterSG
+        PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
+        RDSInstanceSecretArn: !GetAtt InfrastructureStack.Outputs.RDSInstanceSecretArn
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDNSNamespace
+        RdsDbEndpoint: !GetAtt InfrastructureStack.Outputs.DBEndpoint
+        AdapterSG: !GetAtt InfrastructureStack.Outputs.AvAdapterSG
         ApplicationTag: !Ref ApplicationTag
       TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
       TimeoutInMinutes: 30
 
-  Frontend:
+  FrontendStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
@@ -126,15 +126,15 @@ Resources:
         ContainerMemory: !FindInMap [Service, Frontend, ContainerMemory]
         DesiredCount: !FindInMap [Service, Frontend, DesiredCount]
         ApplicationTag: !Ref ApplicationTag
-        PublicLoadbalancerListenerArn: !GetAtt Infrastructure.Outputs.PublicListener
-        FrontendSettingsUpdatedTopicArn: !GetAtt Infrastructure.Outputs.FrontendSettingsUpdatedTopicArn
-        ConfigBucketName: !GetAtt Infrastructure.Outputs.ConfigBucketName
-        LogGroupName: !GetAtt Infrastructure.Outputs.LogGroup
-        FrontendSG: !GetAtt Infrastructure.Outputs.AvFrontendSG
+        PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
+        FrontendSettingsUpdatedTopicArn: !GetAtt ConfigBucketStack.Outputs.FrontendSettingsUpdatedTopicArn
+        ConfigBucketName: !GetAtt ConfigBucketStack.Outputs.ConfigBucketName
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        FrontendSG: !GetAtt InfrastructureStack.Outputs.AvFrontendSG
       TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
       TimeoutInMinutes: 30
 
-  Analyze:
+  AnalyzeStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
@@ -149,14 +149,14 @@ Resources:
         ApAnalyzeCacheDays: !FindInMap [Service, Analyze, ApAnalyzeCacheDays]
         ApAnalyzeCacheDir: !FindInMap [Service, Analyze, ApAnalyzeCacheDir]
         QuarkusHttpCors: !FindInMap [Service, Analyze, QuarkusHttpCors]
-        PublicLoadbalancerListenerArn: !GetAtt Infrastructure.Outputs.PublicListener
-        LogGroupName: !GetAtt Infrastructure.Outputs.LogGroup
-        AnalyzeSG: !GetAtt Infrastructure.Outputs.AvAnalyzeSG
-        PrivateDNSNamespace: !GetAtt Infrastructure.Outputs.PrivateDNSNamespace
+        PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        AnalyzeSG: !GetAtt InfrastructureStack.Outputs.AvAnalyzeSG
+        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDNSNamespace
       TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
       TimeoutInMinutes: 30
   
-  Jobs:
+  JobsStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
@@ -175,10 +175,18 @@ Resources:
         AudioExtractTemplateId: !FindInMap [Service, Jobs, AudioExtractTemplateId]
         AwsRole: !FindInMap [Service, Jobs, AwsRole]
         ElementalQueue: !FindInMap [Service, Jobs, ElementalQueue]
-        LogGroupName: !GetAtt Infrastructure.Outputs.LogGroup
-        JobsSG: !GetAtt Infrastructure.Outputs.AvJobsSG
-        AuthRunnerSecretArn: !GetAtt Adapter.Outputs.AuthRunnerSecretArn
-        PrivateDNSNamespace: !GetAtt Infrastructure.Outputs.PrivateDNSNamespace
-        AdapterServiceName: !GetAtt Adapter.Outputs.ServiceName
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        JobsSG: !GetAtt InfrastructureStack.Outputs.AvJobsSG
+        AuthRunnerSecretArn: !GetAtt AdapterStack.Outputs.AuthRunnerSecretArn
+        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDNSNamespace
+        AdapterServiceName: !GetAtt AdapterStack.Outputs.ServiceName
+      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TimeoutInMinutes: 30
+  
+  ConfigBucketStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
       TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
       TimeoutInMinutes: 30

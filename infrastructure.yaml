@@ -354,62 +354,7 @@ Resources:
       LogGroupName: "accurate-video"
       RetentionInDays: !Ref LogsRetention
 
-  ######################## Configuration Bucket #######################
-  #####################################################################
-  ConfigBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      NotificationConfiguration:
-        TopicConfigurations:
-          - Event: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: prefix
-                    Value: frontend
-            Topic: !Ref FrontendSettingsUpdatedTopic
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-      VersioningConfiguration:
-        Status: Enabled
-
-  FrontendSettingsUpdatedTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  FrontendSettingsUpdatedTopicPolicy:
-    Type: AWS::SNS::TopicPolicy
-    Properties:
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: s3.amazonaws.com
-            Resource:
-              - !Ref FrontendSettingsUpdatedTopic
-            Action: sns:Publish
-            Condition:
-              StringEquals:
-                AWS:SourceAccount: !Ref AWS::AccountId
-      Topics:
-        - !Ref FrontendSettingsUpdatedTopic
-
 Outputs:
-  ConfigBucketName:
-    Description: The name of the AV Config Bucket
-    Value: !Ref "ConfigBucket"
-  FrontendSettingsUpdatedTopicArn:
-    Description: The SNS topic notified when frontend configuration files have changed
-    Value: !Ref "FrontendSettingsUpdatedTopic"
   LogGroup:
     Description: The name of the AV Log Group
     Value: !Ref "LogGroup"
