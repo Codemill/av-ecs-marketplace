@@ -19,7 +19,7 @@ Parameters:
     Description: How much memory in megabytes to give the container
   DesiredCount:
     Type: Number
-    Default: 1
+    Default: 2
     Description: How many copies of the service task to run
   ApplicationTag:
     Type: String

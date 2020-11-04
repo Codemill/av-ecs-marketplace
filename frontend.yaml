@@ -1,12 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
 Parameters:
-  InfrastructureStackName:
-    Type: String
-    Default: av-infrastructure
-    Description:
-      The name of the parent Fargate networking stack that you created. Necessary
-      to locate and reference resources created by that stack.
   ImageRepoName:
     Type: String
     Default: codemill-docker.jfrog.io/accurate-player/accurate-player-qc
@@ -63,6 +57,10 @@ Metadata:
           - Vpc
           - PrivateSubnets
           - PublicLoadbalancerListenerArn
+          - FrontendSettingsUpdatedTopicArn
+          - ConfigBucketName
+          - LogGroupName
+          - FrontendSG
       - Label:
           default: "Image configuration"
         Parameters:
@@ -71,7 +69,6 @@ Metadata:
       - Label:
           default: "Other"
         Parameters:
-          - InfrastructureStackName
           - ApplicationTag
 
 # The task definition. This is a simple metadata description of what

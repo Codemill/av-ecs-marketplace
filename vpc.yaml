@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: This template will deploy a stack containing a VPC with public 
+Description: This template will deploy a stack containing a VPC with public
   and private subnets.
 
 Parameters:
@@ -37,10 +37,8 @@ Conditions:
   UseThreeAz: !Equals [!Ref UseThreeAz, "true"]
 
 Resources:
-  ################################ VPC ################################
-  #####################################################################
-  # VPC with two public subnets and two private subnets distributed over 
-  # two availability zones for high availability.
+  ############################## VPC #############################
+  ################################################################
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -51,7 +49,8 @@ Resources:
         - Key: application
           Value: !Ref ApplicationTag
 
-  # Public subnets, where resources can be assigned public IP addresses
+  ######################## Public Subnets ########################
+  ################################################################
   PublicSubnetOne:
     Type: AWS::EC2::Subnet
     Properties:
@@ -60,7 +59,7 @@ Resources:
           - 0
           - Fn::GetAZs: { Ref: "AWS::Region" }
       VpcId: !Ref "VPC"
-      CidrBlock: !Select [ 0, !Cidr [ !GetAtt VPC.CidrBlock, 6, 8 ]]
+      CidrBlock: !Select [0, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: application
@@ -75,7 +74,7 @@ Resources:
           - 1
           - Fn::GetAZs: { Ref: "AWS::Region" }
       VpcId: !Ref "VPC"
-      CidrBlock: !Select [ 1, !Cidr [ !GetAtt VPC.CidrBlock, 6, 8 ]]
+      CidrBlock: !Select [1, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: application
@@ -91,60 +90,14 @@ Resources:
           - 2
           - Fn::GetAZs: { Ref: "AWS::Region" }
       VpcId: !Ref "VPC"
-      CidrBlock: !Select [ 2, !Cidr [ !GetAtt VPC.CidrBlock, 6, 8 ]]
+      CidrBlock: !Select [2, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
         - Key: Name
           Value: "AV Public Three"
-  # Private subnets, where resources will only be assigned private IP addresses
-  PrivateSubnetOne:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone:
-        Fn::Select:
-          - 0
-          - Fn::GetAZs: { Ref: "AWS::Region" }
-      VpcId: !Ref "VPC"
-      CidrBlock: !Select [ 3, !Cidr [ !GetAtt VPC.CidrBlock, 6, 8 ]]
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-        - Key: Name
-          Value: "AV Private One"
-  PrivateSubnetTwo:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone:
-        Fn::Select:
-          - 1
-          - Fn::GetAZs: { Ref: "AWS::Region" }
-      VpcId: !Ref "VPC"
-      CidrBlock: !Select [ 4, !Cidr [ !GetAtt VPC.CidrBlock, 6, 8 ]]
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-        - Key: Name
-          Value: "AV Private Two"          
-  PrivateSubnetThree:
-    Type: AWS::EC2::Subnet
-    Condition: UseThreeAz
-    Properties:
-      AvailabilityZone:
-        Fn::Select:
-          - 2
-          - Fn::GetAZs: { Ref: "AWS::Region" }
-      VpcId: !Ref "VPC"
-      CidrBlock: !Select [ 5, !Cidr [ !GetAtt VPC.CidrBlock, 6, 8 ]]
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-        - Key: Name
-          Value: "AV Private Three"          
 
-  # Networking resources for the public subnets. Resources in the public subnets 
-  # have public IP addresses and internet traffic is routed via the internet gateway.
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -187,9 +140,52 @@ Resources:
       SubnetId: !Ref PublicSubnetThree
       RouteTableId: !Ref PublicRouteTable
 
-  # Setup networking resources for the private subnets. Resources in these subnets 
-  # have only private IP addresses, and must use a NAT gateway to talk to the internet. 
-  # We launch two NAT gateways, one in each public subnet.
+  ######################## Private Subnets #######################
+  ################################################################
+  PrivateSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: { Ref: "AWS::Region" }
+      VpcId: !Ref "VPC"
+      CidrBlock: !Select [3, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+        - Key: Name
+          Value: "AV Private One"
+  PrivateSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: { Ref: "AWS::Region" }
+      VpcId: !Ref "VPC"
+      CidrBlock: !Select [4, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+        - Key: Name
+          Value: "AV Private Two"
+  PrivateSubnetThree:
+    Type: AWS::EC2::Subnet
+    Condition: UseThreeAz
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 2
+          - Fn::GetAZs: { Ref: "AWS::Region" }
+      VpcId: !Ref "VPC"
+      CidrBlock: !Select [5, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+        - Key: Name
+          Value: "AV Private Three"
+
   ElasticIpOne:
     Type: AWS::EC2::EIP
     DependsOn: GatewayAttachment
@@ -298,9 +294,11 @@ Resources:
       RouteTableId: !Ref PrivateRouteTableThree
       SubnetId: !Ref PrivateSubnetThree
 
+  ######################### VPC Endpoints ########################
+  ################################################################
   VpcEndpointS3:
     Type: AWS::EC2::VPCEndpoint
-    Properties: 
+    Properties:
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -308,7 +306,7 @@ Resources:
             Action: "*"
             Principal: "*"
             Resource: "*"
-      RouteTableIds: 
+      RouteTableIds:
         - !Ref PrivateRouteTableOne
         - !Ref PrivateRouteTableTwo
         - !If
@@ -318,7 +316,7 @@ Resources:
       ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
       VpcEndpointType: Gateway
       VpcId: !Ref VPC
-        
+
 Outputs:
   VPCId:
     Description: The ID of the VPC that this stack is deployed in
@@ -343,4 +341,3 @@ Outputs:
     Condition: UseThreeAz
     Description: Private subnet two
     Value: !Ref "PrivateSubnetTwo"
-  

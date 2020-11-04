@@ -1,17 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Deploy a service on AWS Fargate, hosted in a private subnet
 Parameters:
-  InfrastructureStackName:
-    Type: String
-    Default: av-infrastructure
-    Description:
-      The name of the parent Fargate networking stack that you created. Necessary
-      to locate and reference resources created by that stack.
-  AdapterStackName:
-    Type: String
-    Default: av-adapter
-    Description: The name of the Adapter stack that you created. Necessary
-      to locate and reference resources created by that stack.
   ImageRepoName:
     Type: String
     Default: codemill-docker.jfrog.io/accurate-player/accurate-video-jobs
@@ -96,6 +85,11 @@ Metadata:
           - ContainerMemory
           - DesiredCount
           - PrivateSubnets
+          - LogGroupName
+          - JobsSG
+          - AuthRunnerSecretArn
+          - PrivateDNSNamespace
+          - AdapterServiceName
       - Label:
           default: "Image configuration"
         Parameters:
@@ -118,8 +112,6 @@ Metadata:
       - Label:
           default: "Other"
         Parameters:
-          - InfrastructureStackName
-          - AdapterStackName
           - ApplicationTag
 
 Conditions:
