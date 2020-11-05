@@ -170,7 +170,7 @@ Resources:
         RdsDbEndpoint: !GetAtt InfrastructureStack.Outputs.DBEndpoint
         AdapterSG: !GetAtt InfrastructureStack.Outputs.AvAdapterSG
         ApplicationTag: !Ref ApplicationTag
-      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TemplateURL: !Sub ${TemplatesS3Bucket}/adapter.yaml
       TimeoutInMinutes: 30
 
   FrontendStack:
@@ -190,7 +190,7 @@ Resources:
         ConfigBucketName: !GetAtt ConfigBucketStack.Outputs.ConfigBucketName
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         FrontendSG: !GetAtt InfrastructureStack.Outputs.AvFrontendSG
-      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TemplateURL: !Sub ${TemplatesS3Bucket}/frontend.yaml
       TimeoutInMinutes: 30
 
   AnalyzeStack:
@@ -212,7 +212,7 @@ Resources:
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         AnalyzeSG: !GetAtt InfrastructureStack.Outputs.AvAnalyzeSG
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDNSNamespace
-      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TemplateURL: !Sub ${TemplatesS3Bucket}/analyze.yaml
       TimeoutInMinutes: 30
   
   JobsStack:
@@ -239,7 +239,15 @@ Resources:
         AuthRunnerSecretArn: !GetAtt AdapterStack.Outputs.AuthRunnerSecretArn
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDNSNamespace
         AdapterServiceName: !GetAtt AdapterStack.Outputs.ServiceName
-      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TemplateURL: !Sub ${TemplatesS3Bucket}/jobs.yaml
+      TimeoutInMinutes: 30
+  
+  KeycloakStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+      TemplateURL: !Sub ${TemplatesS3Bucket}/keycloak.yaml
       TimeoutInMinutes: 30
   
   ConfigBucketStack:
@@ -247,5 +255,5 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TemplateURL: !Sub ${TemplatesS3Bucket}/config-bucket.yaml
       TimeoutInMinutes: 30
