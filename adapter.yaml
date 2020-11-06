@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: 2010-09-09
 Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
 
 Parameters:
@@ -24,60 +24,46 @@ Parameters:
     Description: How many copies of the service task to run
   ApplicationTag:
     Type: String
-    Default: "accurate-video"
+    Default: accurate-video
   Vpc:
     Type: AWS::EC2::VPC::Id
-    Description: "VPC ID"
+    Description: VPC ID
   PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: "Private Subnets"
+    Description: Private Subnets
   PublicLoadbalancerListenerArn:
     Type: String
-    Description: "Public Loadbalancer Listener Arn"
-  RDSInstanceSecretArn:
-    Type: String
-    Description: "RDS Secrets Manager Arn"
+    Description: Public Loadbalancer Listener Arn
   LogGroupName:
     Type: String
-    Description: "CloudWatch Log Group Name"
+    Description: CloudWatch Log Group Name
   PrivateDNSNamespace:
     Type: String
-    Description: "Private DNS Namespace"
-  RdsDbEndpoint:
-    Type: String
-    Description: "RDS Database Endpoint"
+    Description: Private DNS Namespace
   AdapterSG:
     Type: AWS::EC2::SecurityGroup::GroupName
-    Description: "Adapter Security Group"
+    Description: Adapter Security Group
 
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label:
-          default: "Service configuration"
-        Parameters:
-          - ContainerCpu
-          - ContainerMemory
-          - DesiredCount
-          - Vpc
-          - PrivateSubnets
-          - PublicLoadbalancerListenerArn
-          - RDSInstanceSecretArn
-          - LogGroupName
-          - PrivateDNSNamespace
-          - RdsDbEndpoint
-          - AdapterSG
-      - Label:
-          default: "Image configuration"
-        Parameters:
-          - ImageRepoName
-          - ImageTag
-      - Label:
-          default: "Other"
-        Parameters:
-          - ApplicationTag
+  RdsDbAllocatedStorage:
+    Type: String
+    Default: "5"
+    Description: Size of the database in GB
+  RdsDbClass:
+    Type: String
+    Default: db.t3.small
+    AllowedValues:
+      - db.t3.micro
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+    Description: The RDS Database class to use
+  RdsDbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::GroupName
+    Description: Adapter RDS Security Group
 
 Resources:
+  ################################ --- ################################
+  #####################################################################
   AuthRunnerSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -91,6 +77,53 @@ Resources:
         - Key: application
           Value: !Ref ApplicationTag
 
+  ################################ RDS ################################
+  #####################################################################
+  RdsDbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "AccurateVideo-DB-Subnet-group"
+      SubnetIds: !Ref PrivateSubnets
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  RdsInstanceSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: "RDS instance secret"
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "postgres"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: !Ref RdsDbAllocatedStorage
+      DBInstanceClass: !Ref RdsDbClass
+      DBName: accurate-video
+      DBSubnetGroupName: !Ref RdsDbSubnetGroup
+      DeletionProtection: true
+      Engine: Postgres
+      MasterUsername: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::password}}"
+      MultiAZ: true
+      StorageEncrypted: true
+      VPCSecurityGroups:
+        - !Ref RdsDbSecurityGroup
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+
+  ################################ ECS ################################
+  #####################################################################
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -138,8 +171,6 @@ Resources:
               Value: "false"
             - Name: QUARKUS_DATASOURCE_DRIVER
               Value: "org.postgresql.Driver"
-            - Name: QUARKUS_DATASOURCE_URL
-              Value: !Sub "jdbc:postgresql://${RdsDbEndpoint}/accurateVideo"
             - Name: QUARKUS_FLYWAY_BASELINE-ON-MIGRATE
               Value: "false"
             - Name: QUARKUS_FLYWAY_MIGRATE-AT-START
@@ -166,15 +197,24 @@ Resources:
               Value: "/api"
             - Name: CLUSTER_XML
               Value: "/opt/ecs-cluster.xml"
+
+              #KEEP everything under this line
+            - Name: DB_HOST
+              Value: !GetAtt DBInstance.Endpoint.Address
             - Name: CLUSTER_NAME_REGEXP
               Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video"
             - Name: SERVICE_NAME_REGEXP
               Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+"
+            - Name: KEYCLOAK_HOST
+              Value: ""
+            - Name: KEYCLOAK_BACKEND_PASSWORD
+              Value: ""
           Secrets:
-            - Name: QUARKUS_DATASOURCE_USERNAME
-              ValueFrom: !Sub "${RDSInstanceSecretArn}:username::"
-            - Name: QUARKUS_DATASOURCE_PASSWORD
-              ValueFrom: !Sub "${RDSInstanceSecretArn}:password::"
+              #KEEP everything under this line
+            - Name: DB_USER
+              ValueFrom: !Sub "${RdsInstanceSecret}:username::"
+            - Name: DB_PASS
+              ValueFrom: !Sub "${RdsInstanceSecret}:password::"
             - Name: AUTH_RUNNER_USERNAME
               ValueFrom: !Sub "${AuthRunnerSecret}:username::"
             - Name: AUTH_RUNNER_PASSWORD
@@ -203,7 +243,7 @@ Resources:
                 Action:
                   - "secretsmanager:GetSecretValue"
                 Resource:
-                  - !Ref RDSInstanceSecretArn
+                  - !Ref RdsInstanceSecret
                   - !Ref AuthRunnerSecret
               - Effect: Allow
                 Action:

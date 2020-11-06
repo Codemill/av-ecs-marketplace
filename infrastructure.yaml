@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: 2010-09-09
 Description: This template will deploy a Cloud Map private DNS namespace which
   allows services to find each other without going through the ALB. A RDS
   Postgres database instance will also be deployed, as well as an S3 bucket
@@ -8,131 +8,47 @@ Description: This template will deploy a Cloud Map private DNS namespace which
   different services will send their application logs to.
 
 Parameters:
-  DBClass:
-    Type: String
-    Default: db.t3.small
-    Description: Type of RDS instance
-  DBAllocatedStorage:
-    Type: String
-    Default: "5"
-    Description: Size of the database in GB
   ApplicationTag:
     Type: String
-    Default: "accurate-video"
+    Default: accurate-video
     Description: Used to tag all resources
   Vpc:
     Type: AWS::EC2::VPC::Id
-    Description: "VPC ID"
-  PrivateSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: "Private Subnets"
+    Description: VPC ID
   PublicSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: "Public Subnets"
+    Description: Public Subnets
   LogsRetention:
     Type: Number
     Default: 14
-    Description: "Number of days that application logs are saved"
+    Description: Number of days that application logs are saved
   CertificateArn:
     Type: String
     Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
   HostedZoneId:
     Type: AWS::Route53::HostedZone::Id
-    Description: "Route53 Hosted Zone Id"
+    Description: Route53 Hosted Zone Id
   LoadBalancerDomainName:
     Type: String
-    Description: "Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)"
-
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label:
-          default: "Network configuration"
-        Parameters:
-          - Vpc
-          - PrivateSubnets
-          - PublicSubnets
-      - Label:
-          default: "DNS Config"
-        Parameters:
-          - CertificateArn
-          - HostedZoneId
-          - LoadBalancerDomainName
-      - Label:
-          default: "Database configuration"
-        Parameters:
-          - DBClass
-          - DBAllocatedStorage
-      - Label:
-          default: "Other"
-        Parameters:
-          - ApplicationTag
-          - LogsRetention
+    Description: Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)
 
 Resources:
-  PrivateDNSNamespace:
+  PrivateDnsNamespace:
     Type: AWS::ServiceDiscovery::PrivateDnsNamespace
     Properties:
       Name: av.local
-      Vpc: !Ref "Vpc"
+      Vpc: !Ref Vpc
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
 
-  ECSCluster:
+  EcsCluster:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: accurate-video
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
-
-  ################################ RDS ################################
-  #####################################################################
-  DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: "AccurateVideo-DB-Subnet-group"
-      SubnetIds: !Ref PrivateSubnets
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  RDSInstanceSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Description: "RDS instance secret"
-      GenerateSecretString:
-        SecretStringTemplate: '{"username": "postgres"}'
-        GenerateStringKey: "password"
-        PasswordLength: 16
-        ExcludeCharacters: '"@/\'
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  DBInstance:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      AllocatedStorage: !Ref "DBAllocatedStorage"
-      # BackupRetentionPeriod:
-      DBInstanceClass: !Ref "DBClass"
-      DBName: accurateVideo
-      DBSubnetGroupName: !Ref "DBSubnetGroup"
-      DeletionProtection: true
-      Engine: Postgres
-      MasterUsername: !Sub "{{resolve:secretsmanager:${RDSInstanceSecret}::username}}"
-      MasterUserPassword: !Sub "{{resolve:secretsmanager:${RDSInstanceSecret}::password}}"
-      # MaxAllocatedStorage:
-      MultiAZ: true
-      StorageEncrypted: true
-      VPCSecurityGroups:
-        - !GetAtt RdsDatabaseSG.GroupId
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-    DeletionPolicy: Snapshot
-    UpdateReplacePolicy: Snapshot
 
   ########################## Load Balancer ############################
   #####################################################################
@@ -144,7 +60,7 @@ Resources:
         - Key: idle_timeout.timeout_seconds
           Value: "30"
       Subnets: !Ref PublicSubnets
-      SecurityGroups: [!Ref "PublicLoadBalancerSG"]
+      SecurityGroups: [!Ref PublicLoadBalancerSecurityGroup]
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -173,8 +89,8 @@ Resources:
             ContentType: text/plain
             MessageBody: "Not implemented"
             StatusCode: "200"
-          Type: "fixed-response"
-      LoadBalancerArn: !Ref "PublicLoadBalancer"
+          Type: fixed-response
+      LoadBalancerArn: !Ref PublicLoadBalancer
       Port: 443
       Protocol: HTTPS
       SslPolicy: "ELBSecurityPolicy-2016-08"
@@ -193,158 +109,158 @@ Resources:
 
   ######################### Security Groups ###########################
   #####################################################################
-  PublicLoadBalancerSG:
+  PublicLoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Access to the public facing load balancer
-      VpcId: !Ref "Vpc"
+      VpcId: !Ref Vpc
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
         - CidrIp: 0.0.0.0/0
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           FromPort: 443
           ToPort: 443
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
 
-  RdsDatabaseSG:
+  AdapterRdsDbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Access to RDS instance
-      VpcId: !Ref "Vpc"
+      GroupDescription: Access to the Adapter RDS DB instance
+      VpcId: !Ref Vpc
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
 
-  RdsDatabaseSgIngress:
+  AdapterRdsDbSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Access from Adapter service
-      IpProtocol: "tcp"
+      IpProtocol: tcp
       FromPort: 5432
       ToPort: 5432
-      SourceSecurityGroupId: !Ref AvAdapterSG
-      GroupId: !Ref RdsDatabaseSG
+      SourceSecurityGroupId: !Ref AdapterSecurityGroup
+      GroupId: !Ref AdapterRdsDbSecurityGroup
 
-  AvAdapterSG:
+  AdapterSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Access to Adapter service
-      VpcId: !Ref "Vpc"
+      VpcId: !Ref Vpc
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
 
-  AdapterSgIngressALB:
+  AdapterSecurityGroupIngressAlb:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Access from the public ALB
-      IpProtocol: "tcp"
+      IpProtocol: tcp
       FromPort: 8080
       ToPort: 8080
-      SourceSecurityGroupId: !Ref "PublicLoadBalancerSG"
-      GroupId: !Ref AvAdapterSG
+      SourceSecurityGroupId: !Ref PublicLoadBalancerSecurityGroup
+      GroupId: !Ref AdapterSecurityGroup
 
-  AdapterSgIngressJobs:
+  AdapterSecurityGroupIngressJobs:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Access from the Jobs service
-      IpProtocol: "tcp"
+      IpProtocol: tcp
       FromPort: 8080
       ToPort: 8080
-      SourceSecurityGroupId: !Ref "AvJobsSG"
-      GroupId: !Ref AvAdapterSG
+      SourceSecurityGroupId: !Ref JobsSecurityGroup
+      GroupId: !Ref AdapterSecurityGroup
 
-  AdapterSgIngressJobsHazelcast:
+  AdapterSecurityGroupIngressJobsHazelcast:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Access from the Jobs service
-      IpProtocol: "tcp"
+      IpProtocol: tcp
       FromPort: 5699
       ToPort: 5702
-      SourceSecurityGroupId: !Ref "AvJobsSG"
-      GroupId: !Ref AvAdapterSG
+      SourceSecurityGroupId: !Ref JobsSecurityGroup
+      GroupId: !Ref AdapterSecurityGroup
 
-  AdapterSgIngressAdapterHazelcast:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      Description: Access from the Jobs service
-      IpProtocol: "tcp"
-      FromPort: 5699
-      ToPort: 5702
-      SourceSecurityGroupId: !Ref "AvAdapterSG"
-      GroupId: !Ref AvAdapterSG
-
-  AvFrontendSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Access to Frontend service
-      VpcId: !Ref "Vpc"
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  AvFrontendSgIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      Description: Access from the public ALB
-      IpProtocol: "tcp"
-      FromPort: 80
-      ToPort: 80
-      SourceSecurityGroupId: !Ref "PublicLoadBalancerSG"
-      GroupId: !Ref AvFrontendSG
-
-  AvAnalyzeSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Access to Analyze service
-      VpcId: !Ref "Vpc"
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  AvAnalyzeSgIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      Description: Access from the public ALB
-      IpProtocol: "tcp"
-      FromPort: 8080
-      ToPort: 8080
-      SourceSecurityGroupId: !Ref "PublicLoadBalancerSG"
-      GroupId: !Ref AvAnalyzeSG
-
-  AvJobsSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Database access from adapter/backend
-      VpcId: !Ref "Vpc"
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  JobsSgIngressAdapterHazelcast:
+  AdapterSecurityGroupIngressAdapterHazelcast:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Access from the Adapter service
-      IpProtocol: "tcp"
+      IpProtocol: tcp
       FromPort: 5699
       ToPort: 5702
-      SourceSecurityGroupId: !Ref AvAdapterSG
-      GroupId: !Ref AvJobsSG
+      SourceSecurityGroupId: !Ref AdapterSecurityGroup
+      GroupId: !Ref AdapterSecurityGroup
 
-  JobsSgIngressJobsHazelcast:
+  FrontendSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to Frontend service
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  FrontendSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Access from the public ALB
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId: !Ref PublicLoadBalancerSecurityGroup
+      GroupId: !Ref FrontendSecurityGroup
+
+  AnalyzeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to Analyze service
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  AnalyzeSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Access from the public ALB
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      SourceSecurityGroupId: !Ref PublicLoadBalancerSecurityGroup
+      GroupId: !Ref AnalyzeSecurityGroup
+
+  JobsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database access from adapter/backend
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  JobsSecurityGroupIngressAdapterHazelcast:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Access from the Adapter service
+      IpProtocol: tcp
+      FromPort: 5699
+      ToPort: 5702
+      SourceSecurityGroupId: !Ref AdapterSecurityGroup
+      GroupId: !Ref JobsSecurityGroup
+
+  JobsSecurityGroupIngressJobsHazelcast:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Access from the Jobs service
-      IpProtocol: "tcp"
+      IpProtocol: tcp
       FromPort: 5699
       ToPort: 5702
-      SourceSecurityGroupId: !Ref AvJobsSG
-      GroupId: !Ref AvJobsSG
+      SourceSecurityGroupId: !Ref JobsSecurityGroup
+      GroupId: !Ref JobsSecurityGroup
 
   ######################## CloudWatch Log Group #######################
   #####################################################################
@@ -356,32 +272,26 @@ Resources:
 
 Outputs:
   LogGroup:
-    Description: The name of the AV Log Group
-    Value: !Ref "LogGroup"
-  DBEndpoint:
-    Description: The endpoint of the database
-    Value: !GetAtt "DBInstance.Endpoint.Address"
-  RdsDatabaseSG:
+    Description: The name of the Log Group
+    Value: !Ref LogGroup
+  AdapterRdsDbSecurityGroup:
     Description: Security group for the RDS instance
-    Value: !Ref RdsDatabaseSG
-  AvAdapterSG:
+    Value: !Ref AdapterRdsDbSecurityGroup
+  AdapterSecurityGroup:
     Description: Security group for the Adapter service
-    Value: !Ref AvAdapterSG
-  AvFrontendSG:
+    Value: !Ref AdapterSecurityGroup
+  FrontendSecurityGroup:
     Description: Security group for the Frontend service
-    Value: !Ref AvFrontendSG
-  AvAnalyzeSG:
+    Value: !Ref FrontendSecurityGroup
+  AnalyzeSecurityGroup:
     Description: Security group for the Analyze service
-    Value: !Ref AvAnalyzeSG
-  AvJobsSG:
+    Value: !Ref AnalyzeSecurityGroup
+  JobsSecurityGroup:
     Description: Security group for the Jobs service
-    Value: !Ref AvJobsSG
-  RDSInstanceSecretArn:
-    Description: Secrets Manager Secret ARN for RDS instance
-    Value: !Ref "RDSInstanceSecret"
+    Value: !Ref JobsSecurityGroup
   PublicListener:
     Description: The ARN of the public load balancer's Listener
     Value: !Ref PublicLoadBalancerListenerHttps
-  PrivateDNSNamespace:
+  PrivateDnsNamespace:
     Description: Private DNS Namespace
-    Value: !Ref PrivateDNSNamespace
+    Value: !Ref PrivateDnsNamespace

@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: 2010-09-09
 Description: >
   Master template which will deploy infrastructure and services as nested stacks.
 
@@ -9,14 +9,36 @@ Parameters:
     Default: https://s3-eu-north-1.amazonaws.com/<BUCKET_NAME>
   Vpc:
     Type: AWS::EC2::VPC::Id
-    Description: "The VPC which AccurateVideo will be deployed in"
+    Description: The VPC which AccurateVideo will be deployed in
   PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: "The Private Subnets which the ECS Services and RDS Database will be deployed in"
+    Description: The Private Subnets which the ECS Services and RDS Database will be deployed in
   PublicSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: "The Public Subnets which the Application Load Balancer will be deployed in"
-  DBClass:
+    Description: The Public Subnets which the Application Load Balancer will be deployed in
+  ApplicationTag:
+    Type: String
+    Default: accurate-video
+    Description: Used to tag all resources
+  LogsRetention:
+    Type: Number
+    Default: 14
+    Description: Number of days that application logs are saved
+  CertificateArn:
+    Type: String
+    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Route53 Hosted Zone Id
+  LoadBalancerDomainName:
+    Type: String
+    Description: Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)
+
+  AdapterRdsDbAllocatedStorage:
+    Type: String
+    Default: "5"
+    Description: Size of the database in GB
+  AdapterRdsDbClass:
     Type: String
     Default: db.t3.small
     AllowedValues:
@@ -25,50 +47,29 @@ Parameters:
       - db.t3.medium
       - db.t3.large
     Description: The RDS Database class to use
-  DBAllocatedStorage:
-    Type: String
-    Default: "5"
-    Description: Size of the database in GB
-  ApplicationTag:
-    Type: String
-    Default: "accurate-video"
-    Description: Used to tag all resources
-  LogsRetention:
-    Type: Number
-    Default: 14
-    Description: "Number of days that application logs are saved"
-  CertificateArn:
-    Type: String
-    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
-  HostedZoneId:
-    Type: AWS::Route53::HostedZone::Id
-    Description: "Route53 Hosted Zone Id"
-  LoadBalancerDomainName:
-    Type: String
-    Description: "Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)"
 
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: "Network configuration"
+          default: Network configuration
         Parameters:
           - Vpc
           - PrivateSubnets
           - PublicSubnets
       - Label:
-          default: "Database configuration"
+          default: Database configuration
         Parameters:
-          - DBClass
-          - DBAllocatedStorage
+          - AdapterRdsDbAllocatedStorage
+          - AdapterRdsDbClass
       - Label:
-          default: "DNS configuration"
+          default: DNS configuration
         Parameters:
           - CertificateArn
           - HostedZoneId
           - LoadBalancerDomainName
       - Label:
-          default: "Other configuration"
+          default: Other configuration
         Parameters:
           - ApplicationTag
           - LogsRetention
@@ -76,25 +77,21 @@ Metadata:
 
     ParameterLabels:
       Vpc:
-        default: "VPC ID"
+        default: VPC ID
       PrivateSubnets:
-        default: "Private Subnets"
+        default: Private Subnets
       PublicSubnets:
-        default: "Public Subnets"
-      DBClass:
-        default: "Instance Type"
-      DBAllocatedStorage:
-        default: "Database Size"
+        default: Public Subnets
       CertificateArn:
-        default: "Certificate Arn"
+        default: Certificate Arn
       HostedZoneId:
-        default: "HostedZone ID"
+        default: HostedZone ID
       LoadBalancerDomainName:
-        default: "Load Balancer Domain Name"
+        default: Load Balancer Domain Name
       ApplicationTag:
-        default: "Application Tag"
+        default: Application Tag
       LogsRetention:
-        default: "Application Logs Retention"
+        default: Application Logs Retention
 
 Mappings:
   Service:
@@ -123,10 +120,7 @@ Mappings:
       BlackFrameDuration: ""
       BlackFrameNumerator: ""
       BlackFrameDenominator: ""
-      LowresTemplateId: ""
-      AudioExtractTemplateId: ""
       AwsRole: ""
-      ElementalQueue: ""
     Frontend:
       ContainerCpu: 256
       ContainerMemory: 512
@@ -139,15 +133,12 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
+        ApplicationTag: !Ref ApplicationTag
         Vpc: !Ref Vpc
-        PrivateSubnets: !Ref PrivateSubnets
         PublicSubnets: !Ref PublicSubnets
         CertificateArn: !Ref CertificateArn
         HostedZoneId: !Ref HostedZoneId
         LoadBalancerDomainName: !Ref LoadBalancerDomainName
-        DBClass: !Ref DBClass
-        DBAllocatedStorage: !Ref DBAllocatedStorage
-        ApplicationTag: !Ref ApplicationTag
         LogsRetention: !Ref LogsRetention
       TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
       TimeoutInMinutes: 30
@@ -164,12 +155,13 @@ Resources:
         ContainerMemory: !FindInMap [Service, Adapter, ContainerMemory]
         DesiredCount: !FindInMap [Service, Adapter, DesiredCount]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
-        RDSInstanceSecretArn: !GetAtt InfrastructureStack.Outputs.RDSInstanceSecretArn
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
-        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDNSNamespace
-        RdsDbEndpoint: !GetAtt InfrastructureStack.Outputs.DBEndpoint
-        AdapterSG: !GetAtt InfrastructureStack.Outputs.AvAdapterSG
+        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
+        AdapterSG: !GetAtt InfrastructureStack.Outputs.AdapterSecurityGroup
         ApplicationTag: !Ref ApplicationTag
+        RdsDbAllocatedStorage: !Ref AdapterRdsDbAllocatedStorage 
+        RdsDbClass: !Ref AdapterRdsDbClass 
+        RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.AdapterRdsDbSecurityGroup
       TemplateURL: !Sub ${TemplatesS3Bucket}/adapter.yaml
       TimeoutInMinutes: 30
 
@@ -189,7 +181,7 @@ Resources:
         FrontendSettingsUpdatedTopicArn: !GetAtt ConfigBucketStack.Outputs.FrontendSettingsUpdatedTopicArn
         ConfigBucketName: !GetAtt ConfigBucketStack.Outputs.ConfigBucketName
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
-        FrontendSG: !GetAtt InfrastructureStack.Outputs.AvFrontendSG
+        FrontendSG: !GetAtt InfrastructureStack.Outputs.FrontendSecurityGroup
       TemplateURL: !Sub ${TemplatesS3Bucket}/frontend.yaml
       TimeoutInMinutes: 30
 
@@ -210,8 +202,8 @@ Resources:
         QuarkusHttpCors: !FindInMap [Service, Analyze, QuarkusHttpCors]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
-        AnalyzeSG: !GetAtt InfrastructureStack.Outputs.AvAnalyzeSG
-        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDNSNamespace
+        AnalyzeSG: !GetAtt InfrastructureStack.Outputs.AnalyzeSecurityGroup
+        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
       TemplateURL: !Sub ${TemplatesS3Bucket}/analyze.yaml
       TimeoutInMinutes: 30
   
@@ -230,24 +222,13 @@ Resources:
         BlackFrameDuration: !FindInMap [Service, Jobs, BlackFrameDuration]
         BlackFrameNumerator: !FindInMap [Service, Jobs, BlackFrameNumerator]
         BlackFrameDenominator: !FindInMap [Service, Jobs, BlackFrameDenominator]
-        LowresTemplateId: !FindInMap [Service, Jobs, LowresTemplateId]
-        AudioExtractTemplateId: !FindInMap [Service, Jobs, AudioExtractTemplateId]
         AwsRole: !FindInMap [Service, Jobs, AwsRole]
-        ElementalQueue: !FindInMap [Service, Jobs, ElementalQueue]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
-        JobsSG: !GetAtt InfrastructureStack.Outputs.AvJobsSG
+        JobsSG: !GetAtt InfrastructureStack.Outputs.JobsSecurityGroup
         AuthRunnerSecretArn: !GetAtt AdapterStack.Outputs.AuthRunnerSecretArn
-        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDNSNamespace
+        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
         AdapterServiceName: !GetAtt AdapterStack.Outputs.ServiceName
       TemplateURL: !Sub ${TemplatesS3Bucket}/jobs.yaml
-      TimeoutInMinutes: 30
-  
-  KeycloakStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Parameters:
-        ApplicationTag: !Ref ApplicationTag
-      TemplateURL: !Sub ${TemplatesS3Bucket}/keycloak.yaml
       TimeoutInMinutes: 30
   
   ConfigBucketStack:

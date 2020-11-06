@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: 2010-09-09
 Description: Deploy a service on AWS Fargate, hosted in a private subnet
 
 Parameters:
@@ -24,11 +24,11 @@ Parameters:
     Description: How many copies of the service task to run
   ApplicationTag:
     Type: String
-    Default: "accurate-video"
+    Default: accurate-video
     Description: Used to tag all resources
   BlackFrameLocation:
     Type: String
-    Default: "s3://av-black-frame-codemill/black25.mp4"
+    Default: s3://av-black-frame-codemill/black25.mp4
     Description: Black frame file used
   BlackFrameDuration:
     Type: String
@@ -42,91 +42,39 @@ Parameters:
     Type: String
     Default: "1"
     Description: Black frame denominator
-  LowresTemplateId:
-    Type: String
-    Default: "standard_h264_follow"
-    Description: Low resolution template ID
-  AudioExtractTemplateId:
-    Type: String
-    Default: "wav"
-    Description: Audio extraction template ID
   AwsRole:
     Type: String
     Default: ""
     Description: IAM role that Elemental can use to access different media locations
-  ElementalQueue:
-    Type: String
-    Default: ""
-    Description: Will use default queue if not configured
   PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: "Private Subnets"
+    Description: Private Subnets
   LogGroupName:
     Type: String
-    Description: "CloudWatch Log Group Name"
+    Description: CloudWatch Log Group Name
   JobsSG:
     Type: AWS::EC2::SecurityGroup::GroupName
-    Description: "Jobs Security Group"
+    Description: Jobs Security Group
   AuthRunnerSecretArn:
     Type: String
-    Description: "Auth Runner Secrets Manager Arn"
+    Description: Auth Runner Secrets Manager Arn
   PrivateDNSNamespace:
     Type: String
-    Description: "Private DNS Namespace"
+    Description: Private DNS Namespace
   AdapterServiceName:
     Type: String
-    Description: "Adapter Service Name"
-
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label:
-          default: "Service configuration"
-        Parameters:
-          - ContainerCpu
-          - ContainerMemory
-          - DesiredCount
-          - PrivateSubnets
-          - LogGroupName
-          - JobsSG
-          - AuthRunnerSecretArn
-          - PrivateDNSNamespace
-          - AdapterServiceName
-      - Label:
-          default: "Image configuration"
-        Parameters:
-          - ImageRepoName
-          - ImageTag
-      - Label:
-          default: "Elemental configuration"
-        Parameters:
-          - BlackFrameLocation
-          - BlackFrameDuration
-          - BlackFrameNumerator
-          - BlackFrameDenominator
-          - LowresTemplateId
-          - AudioExtractTemplateId
-      - Label:
-          default: "Elemental configuration (optional)"
-        Parameters:
-          - AwsRole
-          - ElementalQueue
-      - Label:
-          default: "Other"
-        Parameters:
-          - ApplicationTag
+    Description: Adapter Service Name
 
 Conditions:
   UseElementalAwsRole: !Not [!Equals [!Ref AwsRole, ""]]
-  UseElementalQueue: !Not [!Equals [!Ref ElementalQueue, ""]]
 
 Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: av-jobs
-      Cpu: !Ref "ContainerCpu"
-      Memory: !Ref "ContainerMemory"
+      Cpu: !Ref ContainerCpu
+      Memory: !Ref ContainerMemory
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
@@ -134,14 +82,14 @@ Resources:
       TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       ContainerDefinitions:
         - Name: av-jobs
-          Cpu: !Ref "ContainerCpu"
-          Memory: !Ref "ContainerMemory"
+          Cpu: !Ref ContainerCpu
+          Memory: !Ref ContainerMemory
           Image: !Sub ${ImageRepoName}:${ImageTag}
           PortMappings:
             - ContainerPort: 5701
             - ContainerPort: 5699
           LogConfiguration:
-            LogDriver: "awslogs"
+            LogDriver: awslogs
             Options:
               awslogs-group: !Ref LogGroupName
               awslogs-region: !Ref AWS::Region
@@ -163,37 +111,32 @@ Resources:
               Value: !Ref BlackFrameNumerator
             - Name: AV_RUNNER_BLACK_FRAME_DENOMINATOR
               Value: !Ref BlackFrameDenominator
-            - Name: AV_RUNNER_LOWRES_TEMPLATE_ID
-              Value: !Ref LowresTemplateId
-            - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID
-              Value: !Ref AudioExtractTemplateId
-            - Name: AV_RUNNER_EXECUTOR_POLL_INTERVAL
+            - Name: AV_RUNNER_LOWRES_TEMPLATE_ID #TODO: Can probably be removed since default values will be used
+              Value: !GetAtt MediaConvertPresetStandardH264.Name
+            - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID #TODO: Can probably be removed since default values will be used
+              Value: !GetAtt MediaConvertPresetWav.Name
+            - Name: AV_RUNNER_EXECUTOR_POLL_INTERVAL 
               Value: PT1M
-            - !If
-              - UseElementalQueue
-              - Name: AV_RUNNER_ELEMENTAL_QUEUE
-                Value: !Ref ElementalQueue
-              - !Ref AWS::NoValue
-            - !If
-              - UseElementalAwsRole
-              - Name: AV_RUNNER_AWS_ROLE
-                Value: !Ref AwsRole
-              - !Ref AWS::NoValue
-            - Name: AP_ADAPTER_URL_MP_REST_URL
-              Value: !Sub "http://${AdapterServiceName}.av.local:8080"
             - Name: AV_RUNNER_BINDIR
               Value: /usr/local/bin
             - Name: CLUSTER_XML
               Value: "/opt/ecs-cluster.xml"
+
+              #KEEP everything under this line
+            - Name: AP_ADAPTER_HOST
+              Value: !Sub http://${AdapterServiceName}.av.local:8080
+            - Name: ELEMENTAL_AWS_ROLE
+              Value: !Ref AwsRole
             - Name: CLUSTER_NAME_REGEXP
-              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video"
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video
             - Name: SERVICE_NAME_REGEXP
-              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+"
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+
           Secrets:
+              #KEEP everything under this line
             - Name: AP_ADAPTER_USERNAME
-              ValueFrom: !Sub "${AuthRunnerSecretArn}:username::"
+              ValueFrom: !Sub ${AuthRunnerSecretArn}:username::
             - Name: AP_ADAPTER_PASSWORD
-              ValueFrom: !Sub "${AuthRunnerSecretArn}:password::"
+              ValueFrom: !Sub ${AuthRunnerSecretArn}:password::
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -206,7 +149,7 @@ Resources:
           - Effect: Allow
             Principal:
               Service: [ecs-tasks.amazonaws.com]
-            Action: ["sts:AssumeRole"]
+            Action: [sts:AssumeRole]
       Path: /
       Policies:
         - PolicyName: AmazonECSTaskExecutionRolePolicy
@@ -214,35 +157,35 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - "secretsmanager:GetSecretValue"
+                  - secretsmanager:GetSecretValue
                 Resource:
                   - !Ref AuthRunnerSecretArn
               - Effect: Allow
                 Action:
-                  - "ecs:ListClusters"
-                  - "ecs:ListServices"
-                  - "ecs:ListTasks"
-                  - "ecs:DescribeTasks"
+                  - ecs:ListClusters
+                  - ecs:ListServices
+                  - ecs:ListTasks
+                  - ecs:DescribeTasks
                 Resource: "*"
               - Effect: Allow
                 Action:
-                  - "ecr:BatchCheckLayerAvailability"
-                  - "ecr:BatchGetImage"
-                  - "ecr:GetDownloadUrlForLayer"
-                  - "ecr:GetAuthorizationToken"
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:GetAuthorizationToken
                 Resource: "*"
               - Effect: Allow
                 Action:
-                  - "logs:CreateLogStream"
-                  - "logs:PutLogEvents"
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
                 Resource:
                   - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
               - Effect: Allow
                 Action:
-                  - "s3:ListBucket"
-                  - "s3:HeadObject"
-                  - "s3:GetObject"
-                  - "s3:PutObject"
+                  - s3:ListBucket
+                  - s3:HeadObject
+                  - s3:GetObject
+                  - s3:PutObject
                 Resource: "*"
       Tags:
         - Key: application
@@ -275,7 +218,7 @@ Resources:
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
-      DesiredCount: !Ref "DesiredCount"
+      DesiredCount: !Ref DesiredCount
       ServiceRegistries:
         - RegistryArn: !GetAtt DiscoveryService.Arn
           Port: 5699
@@ -284,7 +227,112 @@ Resources:
           SecurityGroups:
             - !Ref JobsSG
           Subnets: !Ref PrivateSubnets
-      TaskDefinition: !Ref "TaskDefinition"
+      TaskDefinition: !Ref TaskDefinition
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+
+  MediaConvertPresetStandardH264:
+    Type: AWS::MediaConvert::Preset
+    Properties: 
+      Category: String
+      Description: String
+      Name: standard_h264_follow
+      SettingsJson: 
+        VideoDescription:
+          Width: 1920
+          ScalingBehavior: DEFAULT
+          Height: 1080
+          VideoPreprocessors:
+            Deinterlacer:
+              Algorithm: INTERPOLATE
+              Mode: DEINTERLACE
+              Control: NORMAL
+          TimecodeInsertion: DISABLED
+          AntiAlias: ENABLED
+          Sharpness: 50
+          CodecSettings:
+            Codec: H_264
+            H264Settings:
+              InterlaceMode: PROGRESSIVE
+              ParNumerator: 1
+              NumberReferenceFrames: 3
+              Syntax: DEFAULT
+              FramerateDenominator: 1
+              GopClosedCadence: 1
+              HrdBufferInitialFillPercentage: 90
+              GopSize: 90
+              Slices: 1
+              GopBReference: DISABLED
+              HrdBufferSize: 12750000
+              SlowPal: DISABLED
+              ParDenominator: 1
+              SpatialAdaptiveQuantization: ENABLED
+              TemporalAdaptiveQuantization: ENABLED
+              FlickerAdaptiveQuantization: DISABLED
+              EntropyEncoding: CABAC
+              Bitrate: 2000000
+              FramerateControl: INITIALIZE_FROM_SOURCE
+              RateControlMode: CBR
+              CodecProfile: HIGH
+              Telecine: NONE
+              FramerateNumerator: 25
+              MinIInterval: 0
+              AdaptiveQuantization: HIGH
+              CodecLevel: LEVEL_4
+              FieldEncoding: PAFF
+              SceneChangeDetect: ENABLED
+              QualityTuningLevel: MULTI_PASS_HQ
+              FramerateConversionAlgorithm: DUPLICATE_DROP
+              UnregisteredSeiTimecode: DISABLED
+              GopSizeUnits: FRAMES
+              ParControl: SPECIFIED
+              NumberBFramesBetweenReferenceFrames: 1
+              RepeatPps: DISABLED
+          AfdSignaling: NONE
+          DropFrameTimecode: ENABLED
+          RespondToAfd: NONE
+          ColorMetadata: INSERT
+        AudioDescriptions:
+          - AudioTypeControl: FOLLOW_INPUT
+            AudioSourceName: Audio Selector 1
+            CodecSettings:
+              Codec: AAC
+              AacSettings:
+                AudioDescriptionBroadcasterMix: NORMAL
+                Bitrate: 128000
+                RateControlMode: CBR
+                CodecProfile: LC
+                CodingMode: CODING_MODE_2_0
+                RawFormat: NONE
+                SampleRate: 48000
+                Specification: MPEG4
+            LanguageCodeControl: FOLLOW_INPUT
+            AudioType: 0
+        ContainerSettings:
+          Container: MP4
+          Mp4Settings:
+            CslgAtom: INCLUDE
+            FreeSpaceBox: EXCLUDE
+            MoovPlacement: PROGRESSIVE_DOWNLOAD
+
+  MediaConvertPresetWav:
+    Type: AWS::MediaConvert::Preset
+    Properties: 
+      Category: String
+      Description: String
+      Name: wav
+      SettingsJson: 
+        AudioDescriptions:
+          - AudioTypeControl: FOLLOW_INPUT
+            AudioSourceName: Audio Selector 1
+            CodecSettings:
+              Codec: WAV
+              WavSettings:
+                BitDepth: 16
+                Channels: 2
+                SampleRate: 44100
+                Format: RIFF
+            LanguageCodeControl: FOLLOW_INPUT
+        ContainerSettings:
+          Container: RAW

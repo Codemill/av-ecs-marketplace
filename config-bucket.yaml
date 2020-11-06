@@ -1,11 +1,11 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: 2010-09-09
 Description: Configuration bucket with notification event on configuration file changes. 
              Custom lambda will create initial settings.js file.
 
 Parameters:
   ApplicationTag:
     Type: String
-    Default: "accurate-video"
+    Default: accurate-video
     Description: Used to tag all resources
 
 Resources:
@@ -42,7 +42,7 @@ Resources:
     Type: AWS::SNS::TopicPolicy
     Properties:
       PolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
           - Effect: Allow
             Principal:
@@ -62,7 +62,7 @@ Resources:
       ServiceToken: !GetAtt LambdaFunction.Arn
   
   LambdaFunction:
-    Type: "AWS::Lambda::Function"
+    Type: AWS::Lambda::Function
     Properties:
       Code:
         ZipFile: |
@@ -72,7 +72,7 @@ Resources:
           exports.handler = function(event, context, callback) {
             var params = {
               Bucket: process.env.BUCKET_NAME, 
-              Key: 'settings.js', 
+              Key: 'settings.js',
               Body: 'json content'
             };
             s3.putObject(params, function(err, data) {
@@ -95,7 +95,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: 2012-10-17
         Statement:
         - Effect: Allow
           Principal:
@@ -103,11 +103,11 @@ Resources:
             - lambda.amazonaws.com
           Action:
           - sts:AssumeRole
-      Path: "/"
+      Path: /
       Policies:
       - PolicyName: root
         PolicyDocument:
-          Version: '2012-10-17'
+          Version: 2012-10-17
           Statement:
           - Effect: Allow
             Action:
@@ -126,7 +126,7 @@ Resources:
 Outputs:
   ConfigBucketName:
     Description: The name of the AV Config Bucket
-    Value: !Ref "ConfigBucket"
+    Value: !Ref ConfigBucket
   FrontendSettingsUpdatedTopicArn:
     Description: The SNS topic notified when frontend configuration files have changed
-    Value: !Ref "FrontendSettingsUpdatedTopic"
+    Value: !Ref FrontendSettingsUpdatedTopic

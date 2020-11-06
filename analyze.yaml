@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: 2010-09-09
 Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
 
 Parameters:
@@ -24,7 +24,7 @@ Parameters:
     Description: How many copies of the service task to run
   ApplicationTag:
     Type: String
-    Default: "accurate-video"
+    Default: accurate-video
   ApAnalyzeCacheDays:
     Type: String
     Default: "5"
@@ -39,61 +39,30 @@ Parameters:
     Description: ""
   Vpc:
     Type: AWS::EC2::VPC::Id
-    Description: "VPC ID"
+    Description: VPC ID
   PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: "Private Subnets"
+    Description: Private Subnets
   PublicLoadbalancerListenerArn:
     Type: String
-    Description: "Public Loadbalancer Listener Arn"
+    Description: Public Loadbalancer Listener Arn
   LogGroupName:
     Type: String
-    Description: "CloudWatch Log Group Name"
+    Description: CloudWatch Log Group Name
   AnalyzeSG:
     Type: AWS::EC2::SecurityGroup::GroupName
-    Description: "Analyze Security Group"
+    Description: Analyze Security Group
   PrivateDNSNamespace:
     Type: String
-    Description: "Private DNS Namespace"
-    
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label:
-          default: "Service configuration"
-        Parameters:
-          - ContainerCpu
-          - ContainerMemory
-          - DesiredCount
-          - Vpc
-          - PrivateSubnets
-          - PublicLoadbalancerListenerArn
-          - LogGroupName
-          - AnalyzeSG
-          - PrivateDNSNamespace
-      - Label:
-          default: "Image configuration"
-        Parameters:
-          - ImageRepoName
-          - ImageTag
-      - Label:
-          default: "...configuration"
-        Parameters:
-          - ApAnalyzeCacheDays
-          - ApAnalyzeCacheDir
-          - QuarkusHttpCors
-      - Label:
-          default: "Other"
-        Parameters:
-          - ApplicationTag
+    Description: Private DNS Namespace
 
 Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: av-analyze
-      Cpu: !Ref "ContainerCpu"
-      Memory: !Ref "ContainerMemory"
+      Cpu: !Ref ContainerCpu
+      Memory: !Ref ContainerMemory
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
@@ -101,8 +70,8 @@ Resources:
       TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       ContainerDefinitions:
         - Name: av-analyze
-          Cpu: !Ref "ContainerCpu"
-          Memory: !Ref "ContainerMemory"
+          Cpu: !Ref ContainerCpu
+          Memory: !Ref ContainerMemory
           Image: !Sub ${ImageRepoName}:${ImageTag}
           PortMappings:
             - ContainerPort: 8080
@@ -115,7 +84,7 @@ Resources:
             - "sh"
             - "-c"
           LogConfiguration:
-            LogDriver: "awslogs"
+            LogDriver: awslogs
             Options:
               awslogs-group: !Ref LogGroupName
               awslogs-region: !Ref AWS::Region
@@ -143,7 +112,7 @@ Resources:
           - Effect: Allow
             Principal:
               Service: [ecs-tasks.amazonaws.com]
-            Action: ["sts:AssumeRole"]
+            Action: [sts:AssumeRole]
       Path: /
       Policies:
         - PolicyName: AmazonECSTaskExecutionRolePolicy
@@ -151,23 +120,23 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - "ecr:BatchCheckLayerAvailability"
-                  - "ecr:BatchGetImage"
-                  - "ecr:GetDownloadUrlForLayer"
-                  - "ecr:GetAuthorizationToken"
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:GetAuthorizationToken
                 Resource: "*"
               - Effect: Allow
                 Action:
-                  - "logs:CreateLogStream"
-                  - "logs:PutLogEvents"
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
                 Resource:
                   - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
               - Effect: Allow
                 Action:
-                  - "s3:ListBucket"
-                  - "s3:HeadObject"
-                  - "s3:GetObject"
-                  - "s3:PutObject"
+                  - s3:ListBucket
+                  - s3:HeadObject
+                  - s3:GetObject
+                  - s3:PutObject
                 Resource: "*"
       Tags:
         - Key: application
@@ -207,17 +176,17 @@ Resources:
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
-      DesiredCount: !Ref "DesiredCount"
+      DesiredCount: !Ref DesiredCount
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref AnalyzeSG
           Subnets: !Ref PrivateSubnets
-      TaskDefinition: !Ref "TaskDefinition"
+      TaskDefinition: !Ref TaskDefinition
       LoadBalancers:
         - ContainerName: av-analyze
           ContainerPort: 8080
-          TargetGroupArn: !Ref "TargetGroup"
+          TargetGroupArn: !Ref TargetGroup
       ServiceRegistries:
         - RegistryArn: !GetAtt DiscoveryService.Arn
           Port: 8080
@@ -258,8 +227,8 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       Actions:
-        - TargetGroupArn: !Ref "TargetGroup"
-          Type: "forward"
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
       Conditions:
         - Field: path-pattern
           Values: ["/api/analyze/*"]
