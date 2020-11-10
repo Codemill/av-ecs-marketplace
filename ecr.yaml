@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ECR repositories for Accurate Video services on AWS Marketplace
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Default: accurate-video
+    Description: Used to tag all resources
+  ReadOnlyAccountId:
+    Type: String
+    Description: Account that will be able to get images
+
+Resources:
+  EcrRepositoryAdapter:
+    Type: AWS::ECR::Repository
+    Properties: 
+      ImageScanningConfiguration:
+        scanOnPush: "true"
+      ImageTagMutability: IMMUTABLE
+      RepositoryName: accurate-video-adapter
+      RepositoryPolicyText: 
+        Version: 2012-10-17
+        Statement: 
+          - Sid: AllowExternalAccountsToGetImage
+            Effect: Allow
+            Principal: 
+              AWS: 
+                - !Sub arn:aws:iam::${ReadOnlyAccountId}:root
+            Action: 
+              - ecr:GetAuthorizationToken
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvailability
+      Tags: 
+        - Key: application
+          Value: !Ref ApplicationTag
+          
+  EcrRepositoryAnalyze:
+    Type: AWS::ECR::Repository
+    Properties: 
+      ImageScanningConfiguration:
+        scanOnPush: "true"
+      ImageTagMutability: IMMUTABLE
+      RepositoryName: accurate-video-analyze
+      RepositoryPolicyText: 
+        Version: 2012-10-17
+        Statement: 
+          - Sid: AllowExternalAccountsToGetImage
+            Effect: Allow
+            Principal: 
+              AWS: 
+                - !Sub arn:aws:iam::${ReadOnlyAccountId}:root
+            Action: 
+              - ecr:GetAuthorizationToken
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvailability
+      Tags: 
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  EcrRepositoryFrontend:
+    Type: AWS::ECR::Repository
+    Properties: 
+      ImageScanningConfiguration:
+        scanOnPush: "true"
+      ImageTagMutability: IMMUTABLE
+      RepositoryName: accurate-video-frontend
+      RepositoryPolicyText: 
+        Version: 2012-10-17
+        Statement: 
+          - Sid: AllowExternalAccountsToGetImage
+            Effect: Allow
+            Principal: 
+              AWS: 
+                - !Sub arn:aws:iam::${ReadOnlyAccountId}:root
+            Action: 
+              - ecr:GetAuthorizationToken
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvailability
+      Tags: 
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  EcrRepositoryJobs:
+    Type: AWS::ECR::Repository
+    Properties: 
+      ImageScanningConfiguration:
+        scanOnPush: "true"
+      ImageTagMutability: IMMUTABLE
+      RepositoryName: accurate-video-jobs
+      RepositoryPolicyText: 
+        Version: 2012-10-17
+        Statement: 
+          - Sid: AllowExternalAccountsToGetImage
+            Effect: Allow
+            Principal: 
+              AWS: 
+                - !Sub arn:aws:iam::${ReadOnlyAccountId}:root
+            Action: 
+              - ecr:GetAuthorizationToken
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvailability
+      Tags: 
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  EcrRepositoryKeycloak:
+    Type: AWS::ECR::Repository
+    Properties: 
+      ImageScanningConfiguration:
+        scanOnPush: "true"
+      ImageTagMutability: IMMUTABLE
+      RepositoryName: accurate-video-keycloak
+      RepositoryPolicyText: 
+        Version: 2012-10-17
+        Statement: 
+          - Sid: AllowExternalAccountsToGetImage
+            Effect: Allow
+            Principal: 
+              AWS: 
+                - !Sub arn:aws:iam::${ReadOnlyAccountId}:root
+            Action: 
+              - ecr:GetAuthorizationToken
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvailability
+      Tags: 
+        - Key: application
+          Value: !Ref ApplicationTag
