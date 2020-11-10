@@ -320,7 +320,7 @@ Resources:
       VpcId: !Ref Vpc
 
 Outputs:
-  VPCId:
+  VpcId:
     Description: The ID of the VPC that this stack is deployed in
     Value: !Ref Vpc
   PublicSubnetOne:

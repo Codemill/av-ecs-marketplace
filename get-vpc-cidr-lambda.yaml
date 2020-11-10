@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Custom CloudFormation resource which will get CIDR block from VPC ID.
+
+Parameters:
+  Vpc:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID
+  
+Resources:
+  CustomLambda:
+    Type: Custom::GetVpcCidr
+    Properties:
+      ServiceToken: !GetAtt LambdaFunction.Arn
+  
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          const cfnresponse = require('cfn-response');
+          const AWS = require('aws-sdk');
+          const ec2 = new AWS.EC2();
+
+          exports.handler = function(event, context) {
+              if (event.RequestType == "Delete") {
+                  cfnresponse.send(event, context, "SUCCESS")
+                  return
+              }
+              var responseData = {}
+
+              const params = {
+                VpcIds: [ process.env.VPC_ID ]
+              };
+
+              ec2.describeVpcs(params, function (err, data) {
+                  if (err) {
+                      console.error(err)
+                      cfnresponse.send(event, context, cfnresponse.FAILED, err);
+                  } else {
+                      responseData = {CidrBlock: data.Vpcs[0].CidrBlock}
+                      console.log(responseData)
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData);
+                  }
+              });
+          };
+      Environment:
+        Variables:
+          VPC_ID: !Ref Vpc
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs12.x
+      Timeout: 5
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeVpcs
+                Resource: "*"
+Outputs:
+  CidrBlock:
+    Description: CidrBlock
+    Value: !GetAtt CustomLambda.CidrBlock
