@@ -5,20 +5,17 @@ Description: This template will deploy a stack containing a VPC with public
 Parameters:
   ApplicationTag:
     Type: String
-    Default: accurate-video
     Description: Used to tag all resources
   VpcCidr:
     Type: String
-    Default: 10.0.0.0/16
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
     Description: CIDR block for VPC, for example 10.0.0.0/16
-  UseThreeAz:
+  NumberOfAvailabilityZones:
     Type: String
-    Default: "false"
     AllowedValues:
-      - "true"
-      - "false"
+      - "two"
+      - "three"
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -27,14 +24,14 @@ Metadata:
           default: "Network configuration"
         Parameters:
           - VpcCidr
-          - UseThreeAz
+          - NumberOfAvailabilityZones
       - Label:
           default: "Other"
         Parameters:
           - ApplicationTag
 
 Conditions:
-  UseThreeAz: !Equals [!Ref UseThreeAz, "true"]
+  UseThreeAz: !Equals [!Ref NumberOfAvailabilityZones, "three"]
 
 Resources:
   ############################## VPC #############################

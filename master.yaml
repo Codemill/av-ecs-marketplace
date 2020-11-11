@@ -32,15 +32,14 @@ Parameters:
       - "false"
   CreateVpcCidr:
     Type: String
-    Description: Should a VPC be created for you?
-  CreateVpcUseThreeAz:
+    Description: VPC CIDR block (e.g. 10.0.0.0/16)
+  CreateVpcUseNumberOfAz:
     Type: String
-    Description: Should a VPC be created for you?
-    Default: ""
+    Description: How many avaliability zones should the VPC have?
+    Default: "two"
     AllowedValues:
-      - ""
-      - "true"
-      - "false"
+      - "two"
+      - "three"
   HostedZoneId:
     Type: AWS::Route53::HostedZone::Id
     Description: Route53 Hosted Zone Id
@@ -85,7 +84,7 @@ Metadata:
           default: Network (Modify these parameters if you want a VPC to be created for you)
         Parameters:
           - CreateVpc
-          - CreateVpcUseThreeAz
+          - CreateVpcUseNumberOfAz
           - CreateVpcCidr
       - Label:
           default: Network (Modify these parameters if you want to use an existing VPC)
@@ -126,8 +125,8 @@ Metadata:
         default: Create new VPC
       CreateVpcCidr:
         default: VPC CIDR
-      CreateVpcUseThreeAz:
-        default: VPC should have 3 Availability Zones
+      CreateVpcUseNumberOfAz:
+        default: Number of Availability Zones 
       HostedZoneId:
         default: HostedZone ID
       KeycloakRdsDbAllocatedStorage:
@@ -199,7 +198,7 @@ Resources:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
         VpcCidr: !Ref CreateVpcCidr
-        UseThreeAz: !Ref CreateVpcUseThreeAz
+        NumberOfAvailabilityZones: !Ref CreateVpcUseNumberOfAz
       TemplateURL: !Sub ${TemplatesS3Bucket}/vpc.yaml
       TimeoutInMinutes: 30
 
