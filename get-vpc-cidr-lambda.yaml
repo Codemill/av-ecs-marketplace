@@ -17,31 +17,30 @@ Resources:
     Properties:
       Code:
         ZipFile: |
-          const cfnresponse = require('cfn-response');
-          const AWS = require('aws-sdk');
+          const cfnresponse = require("cfn-response");
+          const AWS = require("aws-sdk");
           const ec2 = new AWS.EC2();
 
-          exports.handler = function(event, context) {
-              if (event.RequestType == "Delete") {
-                  cfnresponse.send(event, context, "SUCCESS")
-                  return
+          exports.handler = function (event, context) {
+            if (event.RequestType == "Delete") {
+              cfnresponse.send(event, context, cfnresponse.SUCCESS);
+              return;
+            }
+
+            const params = {
+              VpcIds: [process.env.VPC_ID],
+            };
+
+            ec2.describeVpcs(params, function (err, data) {
+              if (err) {
+                console.error(err);
+                cfnresponse.send(event, context, cfnresponse.FAILED, err);
+                return;
               }
-              var responseData = {}
 
-              const params = {
-                VpcIds: [ process.env.VPC_ID ]
-              };
-
-              ec2.describeVpcs(params, function (err, data) {
-                  if (err) {
-                      console.error(err)
-                      cfnresponse.send(event, context, cfnresponse.FAILED, err);
-                  } else {
-                      responseData = {CidrBlock: data.Vpcs[0].CidrBlock}
-                      console.log(responseData)
-                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData);
-                  }
-              });
+              let responseData = { CidrBlock: data.Vpcs[0].CidrBlock };
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData);
+            });
           };
       Environment:
         Variables:

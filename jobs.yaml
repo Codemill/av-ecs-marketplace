@@ -4,11 +4,11 @@ Description: Deploy a service on AWS Fargate, hosted in a private subnet
 Parameters:
   ImageRepoName:
     Type: String
-    Default: codemill-docker.jfrog.io/accurate-player/accurate-video-jobs
+    Default: <account-id>.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
     Description: The docker image repo to use for image deployment
   ImageTag:
     Type: String
-    Default: 4.3.2
+    Default: 4.4.0
     Description: The docker image tag to use for image deployment
   ContainerCpu:
     Type: Number
@@ -64,9 +64,9 @@ Parameters:
   AdapterServiceName:
     Type: String
     Description: Adapter Service Name
-
-Conditions:
-  UseElementalAwsRole: !Not [!Equals [!Ref AwsRole, ""]]
+  VpcCidrBlock:
+    Type: String
+    Description: VPC CIDR Block
 
 Resources:
   TaskDefinition:
@@ -127,16 +127,18 @@ Resources:
               Value: !Sub http://${AdapterServiceName}.av.local:8080
             - Name: ELEMENTAL_AWS_ROLE
               Value: !Ref AwsRole
-            - Name: CLUSTER_NAME_REGEXP
+            - Name: HZE_CLUSTER_NAME_REGEXP
               Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video
-            - Name: SERVICE_NAME_REGEXP
+            - Name: HZE_SERVICE_NAME_REGEXP
               Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+
+            - Name: HZE_IPV4_CIDR
+              Value: !Ref VpcCidrBlock
           Secrets:
               #KEEP everything under this line
             - Name: AP_ADAPTER_USERNAME
-              ValueFrom: !Sub ${AuthRunnerSecretArn}:username::
+              ValueFrom: !Sub "${AuthRunnerSecretArn}:username::"
             - Name: AP_ADAPTER_PASSWORD
-              ValueFrom: !Sub ${AuthRunnerSecretArn}:password::
+              ValueFrom: !Sub "${AuthRunnerSecretArn}:password::"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -151,6 +153,8 @@ Resources:
               Service: [ecs-tasks.amazonaws.com]
             Action: [sts:AssumeRole]
       Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
         - PolicyName: AmazonECSTaskExecutionRolePolicy
           PolicyDocument:
@@ -167,19 +171,6 @@ Resources:
                   - ecs:ListTasks
                   - ecs:DescribeTasks
                 Resource: "*"
-              - Effect: Allow
-                Action:
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:BatchGetImage
-                  - ecr:GetDownloadUrlForLayer
-                  - ecr:GetAuthorizationToken
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
               - Effect: Allow
                 Action:
                   - s3:ListBucket

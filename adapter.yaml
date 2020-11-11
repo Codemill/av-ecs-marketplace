@@ -4,12 +4,12 @@ Description: Deploy a service on AWS Fargate, hosted in a private subnet, but ac
 Parameters:
   ImageRepoName:
     Type: String
-    Default: codemill-docker.jfrog.io/accurate-player/accurate-player-adapter-postgres
-    Description: The ecr repo and tag to use for image deployment
+    Default: <account-id>.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
+    Description: The ecr repo to use for image deployment
   ImageTag:
     Type: String
-    Default: 4.3.2
-    Description: The ecr repo and tag to use for image deployment
+    Default: 4.4.0
+    Description: The ecr tag to use for image deployment
   ContainerCpu:
     Type: Number
     Default: 256
@@ -43,6 +43,9 @@ Parameters:
   AdapterSG:
     Type: AWS::EC2::SecurityGroup::GroupName
     Description: Adapter Security Group
+  VpcCidrBlock:
+    Type: String
+    Description: VPC CIDR Block
 
   RdsDbAllocatedStorage:
     Type: String
@@ -52,10 +55,10 @@ Parameters:
     Type: String
     Default: db.t3.small
     AllowedValues:
-      - db.t3.micro
       - db.t3.small
       - db.t3.medium
       - db.t3.large
+      - db.m5.large
     Description: The RDS Database class to use
   RdsDbSecurityGroup:
     Type: AWS::EC2::SecurityGroup::GroupName
@@ -82,7 +85,7 @@ Resources:
   RdsDbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: "AccurateVideo-DB-Subnet-group"
+      DBSubnetGroupDescription: "AccurateVideo-Adapter-DB-Subnet-group"
       SubnetIds: !Ref PrivateSubnets
       Tags:
         - Key: application
@@ -201,14 +204,16 @@ Resources:
               #KEEP everything under this line
             - Name: DB_HOST
               Value: !GetAtt DBInstance.Endpoint.Address
-            - Name: CLUSTER_NAME_REGEXP
+            - Name: HZE_CLUSTER_NAME_REGEXP
               Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video"
-            - Name: SERVICE_NAME_REGEXP
+            - Name: HZE_SERVICE_NAME_REGEXP
               Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+"
             - Name: KEYCLOAK_HOST
               Value: ""
             - Name: KEYCLOAK_BACKEND_PASSWORD
               Value: ""
+            - Name: HZE_IPV4_CIDR
+              Value: !Ref VpcCidrBlock
           Secrets:
               #KEEP everything under this line
             - Name: DB_USER
@@ -235,6 +240,7 @@ Resources:
       Path: /
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AWSMarketplaceMeteringRegisterUsage
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
         - PolicyName: AmazonECSTaskExecutionRolePolicy
           PolicyDocument:
@@ -254,21 +260,8 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action:
-                  - "ecr:BatchCheckLayerAvailability"
-                  - "ecr:BatchGetImage"
-                  - "ecr:GetDownloadUrlForLayer"
-                  - "ecr:GetAuthorizationToken"
-                Resource: "*"
-              - Effect: Allow
-                Action:
                   - "aws-marketplace:RegisterUsage"
                 Resource: "*"
-              - Effect: Allow
-                Action:
-                  - "logs:CreateLogStream"
-                  - "logs:PutLogEvents"
-                Resource:
-                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
               - Effect: Allow
                 Action:
                   - "s3:ListBucket"

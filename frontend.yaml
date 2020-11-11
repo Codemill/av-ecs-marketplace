@@ -4,11 +4,11 @@ Description: Deploy a service on AWS Fargate, hosted in a private subnet, but ac
 Parameters:
   ImageRepoName:
     Type: String
-    Default: codemill-docker.jfrog.io/accurate-player/accurate-player-qc
+    Default: <account-id>.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
     Description: The repo and tag to use for image deployment
   ImageTag:
     Type: String
-    Default: 4.3.2
+    Default: 4.4.0
     Description: The ecr repo and tag to use for image deployment
   ContainerCpu:
     Type: Number
@@ -121,23 +121,12 @@ Resources:
               Service: [ecs-tasks.amazonaws.com]
             Action: ["sts:AssumeRole"]
       Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
         - PolicyName: AmazonECSTaskExecutionRolePolicy
           PolicyDocument:
             Statement:
-              - Effect: Allow
-                Action:
-                  - "ecr:BatchCheckLayerAvailability"
-                  - "ecr:BatchGetImage"
-                  - "ecr:GetDownloadUrlForLayer"
-                  - "ecr:GetAuthorizationToken"
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - "logs:CreateLogStream"
-                  - "logs:PutLogEvents"
-                Resource:
-                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
               - Effect: Allow
                 Action:
                   - "s3:GetObject"

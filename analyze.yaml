@@ -4,7 +4,7 @@ Description: Deploy a service on AWS Fargate, hosted in a private subnet, but ac
 Parameters:
   ImageRepoName:
     Type: String
-    Default: codemill-docker.jfrog.io/accurate-player/accurate-analyze
+    Default: <account-id>.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
     Description: The ecr repo and tag to use for image deployment
   ImageTag:
     Type: String
@@ -52,9 +52,6 @@ Parameters:
   AnalyzeSG:
     Type: AWS::EC2::SecurityGroup::GroupName
     Description: Analyze Security Group
-  PrivateDNSNamespace:
-    Type: String
-    Description: Private DNS Namespace
 
 Resources:
   TaskDefinition:
@@ -75,9 +72,6 @@ Resources:
           Image: !Sub ${ImageRepoName}:${ImageTag}
           PortMappings:
             - ContainerPort: 8080
-            - ContainerPort: 5700
-            - ContainerPort: 5701
-            - ContainerPort: 5702
           Command:
             - "mkdir /tmp/wav && java -jar accurate-analyze.jar"
           EntryPoint:
@@ -114,23 +108,12 @@ Resources:
               Service: [ecs-tasks.amazonaws.com]
             Action: [sts:AssumeRole]
       Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
         - PolicyName: AmazonECSTaskExecutionRolePolicy
           PolicyDocument:
             Statement:
-              - Effect: Allow
-                Action:
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:BatchGetImage
-                  - ecr:GetDownloadUrlForLayer
-                  - ecr:GetAuthorizationToken
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*
               - Effect: Allow
                 Action:
                   - s3:ListBucket
@@ -138,28 +121,6 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: "*"
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  # The service. The service is a resource which allows you to run multiple
-  # copies of a type of task, and gather up their logs and metrics, as well
-  # as monitor the number of running tasks and replace any that have crashed
-  DiscoveryService:
-    Type: AWS::ServiceDiscovery::Service
-    Properties:
-      Description: Discovery Service for the Demo Application
-      DnsConfig:
-        RoutingPolicy: MULTIVALUE
-        DnsRecords:
-          - TTL: 60
-            Type: A
-          - TTL: 60
-            Type: SRV
-      HealthCheckCustomConfig:
-        FailureThreshold: 1
-      Name: av-analyze
-      NamespaceId: !Ref PrivateDNSNamespace
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -187,9 +148,6 @@ Resources:
         - ContainerName: av-analyze
           ContainerPort: 8080
           TargetGroupArn: !Ref TargetGroup
-      ServiceRegistries:
-        - RegistryArn: !GetAtt DiscoveryService.Arn
-          Port: 8080
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
