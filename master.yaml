@@ -4,8 +4,8 @@ Description: >
 
 Parameters:
   TemplatesS3Bucket:
-    Description: The S3 bucket containing the CloudFormation templates
     Type: String
+    Description: The S3 bucket containing the CloudFormation templates
     Default: https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation
   Vpc:
     Type: AWS::EC2::VPC::Id
@@ -92,22 +92,32 @@ Metadata:
           - TemplatesS3Bucket
 
     ParameterLabels:
-      Vpc:
-        default: VPC ID
+      AdapterRdsDbAllocatedStorage:
+        default: Adapter Database Allocated Storage
+      AdapterRdsDbClass:
+        default: Adapter Database Class
+      ApplicationTag:
+        default: Application Tag
+      CertificateArn:
+        default: Certificate ARN
+      HostedZoneId:
+        default: HostedZone ID
+      KeycloakRdsDbAllocatedStorage:
+        default: Keycloak Database Allocated Storage
+      KeycloakRdsDbClass:
+        default: Keycloak Database Class
+      LoadBalancerDomainName:
+        default: Load Balancer Domain Name
+      LogsRetention:
+        default: Application Logs Retention
       PrivateSubnets:
         default: Private Subnets
       PublicSubnets:
         default: Public Subnets
-      CertificateArn:
-        default: Certificate Arn
-      HostedZoneId:
-        default: HostedZone ID
-      LoadBalancerDomainName:
-        default: Load Balancer Domain Name
-      ApplicationTag:
-        default: Application Tag
-      LogsRetention:
-        default: Application Logs Retention
+      TemplatesS3Bucket:
+        default: CloudFormation Templates S3 Bucket
+      Vpc:
+        default: VPC ID
 
 Mappings:
   Service:
