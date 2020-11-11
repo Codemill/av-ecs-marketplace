@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: This template will deploy a Cloud Map private DNS namespace which
-  allows services to find each other without going through the ALB. A RDS
-  Postgres database instance will also be deployed, as well as an S3 bucket
+  allows services to find each other without going through the ALB. An S3 bucket
   containing configuration files used by the services. Changes to the
   configuration files will notify SNS which will later trigger a lambda to
   re-deploy the service. Finally there is a CloudWatch log group which the
@@ -12,16 +11,6 @@ Parameters:
     Type: String
     Default: accurate-video
     Description: Used to tag all resources
-  Vpc:
-    Type: AWS::EC2::VPC::Id
-    Description: VPC ID
-  PublicSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Public Subnets
-  LogsRetention:
-    Type: Number
-    Default: 14
-    Description: Number of days that application logs are saved
   CertificateArn:
     Type: String
     Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
@@ -31,6 +20,16 @@ Parameters:
   LoadBalancerDomainName:
     Type: String
     Description: Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)
+  LogsRetention:
+    Type: Number
+    Default: 14
+    Description: Number of days that application logs are saved
+  PublicSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Public Subnets
+  Vpc:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID
 
 Resources:
   PrivateDnsNamespace:
@@ -145,6 +144,25 @@ Resources:
       ToPort: 5432
       SourceSecurityGroupId: !Ref AdapterSecurityGroup
       GroupId: !Ref AdapterRdsDbSecurityGroup
+
+  KeycloakRdsDbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the Keycloak RDS DB instance
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  KeycloakRdsDbSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Access from Keycloak service
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref KeycloakSecurityGroup
+      GroupId: !Ref KeycloakRdsDbSecurityGroup
 
   AdapterSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -262,6 +280,25 @@ Resources:
       SourceSecurityGroupId: !Ref JobsSecurityGroup
       GroupId: !Ref JobsSecurityGroup
 
+  KeycloakSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database access from adapter/backend
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  KeycloakSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Access from the public ALB
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      SourceSecurityGroupId: !Ref PublicLoadBalancerSecurityGroup
+      GroupId: !Ref KeycloakSecurityGroup
+
   ######################## CloudWatch Log Group #######################
   #####################################################################
   LogGroup:
@@ -275,7 +312,7 @@ Outputs:
     Description: The name of the Log Group
     Value: !Ref LogGroup
   AdapterRdsDbSecurityGroup:
-    Description: Security group for the RDS instance
+    Description: Security group for the Adapter RDS instance
     Value: !Ref AdapterRdsDbSecurityGroup
   AdapterSecurityGroup:
     Description: Security group for the Adapter service
@@ -295,3 +332,9 @@ Outputs:
   PrivateDnsNamespace:
     Description: Private DNS Namespace
     Value: !Ref PrivateDnsNamespace
+  KeycloakSecurityGroup:
+    Description: Security group for the Keycloak service
+    Value: !Ref KeycloakSecurityGroup
+  KeycloakRdsDbSecurityGroup:
+    Description: "Security group for the Keycloak RDS instance"
+    Value: !Ref KeycloakRdsDbSecurityGroup
