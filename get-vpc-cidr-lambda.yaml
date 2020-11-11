@@ -2,8 +2,11 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Custom CloudFormation resource which will get CIDR block from VPC ID.
 
 Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
   Vpc:
-    Type: AWS::EC2::VPC::Id
+    Type: String
     Description: VPC ID
   
 Resources:
@@ -49,6 +52,9 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: nodejs12.x
       Timeout: 5
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -78,6 +84,9 @@ Resources:
                 Action:
                   - ec2:DescribeVpcs
                 Resource: "*"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
 Outputs:
   CidrBlock:
     Description: CidrBlock

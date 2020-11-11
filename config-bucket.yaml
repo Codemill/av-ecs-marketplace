@@ -5,7 +5,6 @@ Description: Configuration bucket with notification event on configuration file 
 Parameters:
   ApplicationTag:
     Type: String
-    Default: accurate-video
     Description: Used to tag all resources
 
 Resources:

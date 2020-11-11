@@ -9,26 +9,24 @@ Description: This template will deploy a Cloud Map private DNS namespace which
 Parameters:
   ApplicationTag:
     Type: String
-    Default: accurate-video
     Description: Used to tag all resources
   CertificateArn:
     Type: String
     Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
   HostedZoneId:
-    Type: AWS::Route53::HostedZone::Id
+    Type: String
     Description: Route53 Hosted Zone Id
   LoadBalancerDomainName:
     Type: String
     Description: Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)
   LogsRetention:
     Type: Number
-    Default: 14
     Description: Number of days that application logs are saved
   PublicSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
+    Type: String
     Description: Public Subnets
   Vpc:
-    Type: AWS::EC2::VPC::Id
+    Type: String
     Description: VPC ID
 
 Resources:
@@ -58,7 +56,7 @@ Resources:
       LoadBalancerAttributes:
         - Key: idle_timeout.timeout_seconds
           Value: "30"
-      Subnets: !Ref PublicSubnets
+      Subnets: !Split [ ',', !Ref PublicSubnets ]
       SecurityGroups: [!Ref PublicLoadBalancerSecurityGroup]
       Tags:
         - Key: application

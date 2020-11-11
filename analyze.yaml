@@ -2,56 +2,48 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
 
 Parameters:
-  ImageRepoName:
+  AnalyzeSG:
     Type: String
-    Default: <account-id>.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
-    Description: The ecr repo and tag to use for image deployment
-  ImageTag:
-    Type: String
-    Default: 1.2.2
-    Description: The ecr repo and tag to use for image deployment
-  ContainerCpu:
-    Type: Number
-    Default: 256
-    Description: How much CPU to give the container. 1024 is 1 CPU
-  ContainerMemory:
-    Type: Number
-    Default: 512
-    Description: How much memory in megabytes to give the container
-  DesiredCount:
-    Type: Number
-    Default: 2
-    Description: How many copies of the service task to run
-  ApplicationTag:
-    Type: String
-    Default: accurate-video
+    Description: Analyze Security Group
   ApAnalyzeCacheDays:
     Type: String
-    Default: "5"
     Description: Number of days
   ApAnalyzeCacheDir:
     Type: String
-    Default: "/tmp/wav"
     Description: ""
-  QuarkusHttpCors:
+  ApplicationTag:
     Type: String
-    Default: "true"
-    Description: ""
-  Vpc:
-    Type: AWS::EC2::VPC::Id
-    Description: VPC ID
+    Description: Used to tag all resources  
+  ContainerCpu:
+    Type: Number
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Description: How much memory in megabytes to give the container
+  DesiredCount:
+    Type: Number
+    Description: How many copies of the service task to run
+  ImageRepoName:
+    Type: String
+    Description: The ecr repo and tag to use for image deployment
+  ImageTag:
+    Type: String
+    Description: The ecr repo and tag to use for image deployment
+  LogGroupName:
+    Type: String
+    Description: CloudWatch Log Group Name
   PrivateSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
+    Type: String
     Description: Private Subnets
   PublicLoadbalancerListenerArn:
     Type: String
     Description: Public Loadbalancer Listener Arn
-  LogGroupName:
+  QuarkusHttpCors:
     Type: String
-    Description: CloudWatch Log Group Name
-  AnalyzeSG:
-    Type: AWS::EC2::SecurityGroup::GroupName
-    Description: Analyze Security Group
+    Description: ""
+  Vpc:
+    Type: String
+    Description: VPC ID
 
 Resources:
   TaskDefinition:
@@ -142,7 +134,7 @@ Resources:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref AnalyzeSG
-          Subnets: !Ref PrivateSubnets
+          Subnets: !Split [ ',', !Ref PrivateSubnets ]
       TaskDefinition: !Ref TaskDefinition
       LoadBalancers:
         - ContainerName: av-analyze

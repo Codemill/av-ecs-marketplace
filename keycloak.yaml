@@ -1,0 +1,250 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+  ContainerCpu:
+    Type: Number
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Description: How much memory in megabytes to give the container
+  DesiredCount:
+    Type: Number
+    Description: How many copies of the service task to run
+  FrontendUrl:
+    Type: String
+    Description: URL for frontend service
+  ImageRepoName:
+    Type: String
+    Description: The ecr repo and tag to use for image deployment
+  ImageTag:
+    Type: String
+    Description: The ecr repo and tag to use for image deployment
+  KeycloakSG:
+    Type: String
+    Description: "Keycloak Security Group"
+  LogGroupName:
+    Type: String
+    Description: "CloudWatch Log Group Name"
+  PrivateSubnets:
+    Type: String
+    Description: "Private Subnets"
+  PublicLoadbalancerListenerArn:
+    Type: String
+    Description: "Public Loadbalancer Listener Arn"
+  RdsDbAllocatedStorage:
+    Type: String
+    Default: "5"
+    Description: Size of the database in GB
+  RdsDbClass:
+    Type: String
+    Default: db.t3.small
+    AllowedValues:
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.m5.large
+    Description: The RDS Database class to use
+  RdsDbSecurityGroup:
+    Type: String
+    Description: Adapter RDS Security Group
+  Vpc:
+    Type: String
+    Description: "VPC ID"
+
+Resources:
+  ################################ RDS ################################
+  #####################################################################
+  RdsDbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "AccurateVideo-Keycloak-DB-Subnet-group"
+      SubnetIds: !Split [ ',', !Ref PrivateSubnets ]
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  RdsInstanceSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: "RDS instance secret"
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "keycloak"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: !Ref RdsDbAllocatedStorage
+      DBInstanceClass: !Ref RdsDbClass
+      DBName: keycloak
+      DBSubnetGroupName: !Ref RdsDbSubnetGroup
+      DeletionProtection: true
+      Engine: Postgres
+      MasterUsername: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::password}}"
+      MultiAZ: true
+      StorageEncrypted: true
+      VPCSecurityGroups:
+        - !Ref RdsDbSecurityGroup
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+
+  ################################ ECS ################################
+  #####################################################################
+  KeycloakSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: "RDS instance secret"
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "keycloak"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: av-keycloak
+      Cpu: !Ref ContainerCpu
+      Memory: !Ref ContainerMemory
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: av-keycloak
+          Cpu: !Ref ContainerCpu
+          Memory: !Ref ContainerMemory
+          Image: !Sub ${ImageRepoName}:${ImageTag}
+          PortMappings:
+            - ContainerPort: 8080
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: !Ref LogGroupName
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: av-keycloak
+          Environment:
+            - Name: DB_ADDR
+              Value: !GetAtt DBInstance.Endpoint.Address
+            - Name: AV_FRONTEND_URL
+              Value: !Ref FrontendUrl
+          Secrets:
+            - Name: DB_USER
+              ValueFrom: !Sub "${RdsInstanceSecret}:username::"
+            - Name: DB_PASS
+              ValueFrom: !Sub "${RdsInstanceSecret}:password::"
+            - Name: AV_BACKEND_PASSWORD
+              ValueFrom: ""
+            - Name: AV_ADMIN_PASSWORD
+              ValueFrom: ""
+            - Name: KEYCLOAK_USER
+              ValueFrom: !Sub "${KeycloakSecret}:username::"
+            - Name: KEYCLOAK_PASSWORD
+              ValueFrom: !Sub "${KeycloakSecret}:password::"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSMarketplaceMeteringRegisterUsage
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "secretsmanager:GetSecretValue"
+                Resource:
+                  - !Ref RdsInstanceSecret
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: LoadBalancerRule
+    Properties:
+      Cluster: accurate-video
+      LaunchType: FARGATE
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+      DesiredCount: !Ref DesiredCount
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - !Ref KeycloakSG
+          Subnets: !Split [ ',', !Ref PrivateSubnets ]
+      TaskDefinition: !Ref TaskDefinition
+      LoadBalancers:
+        - ContainerName: av-keycloak
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 120
+      HealthCheckPath: /api/asset #TODO
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 60
+      HealthyThresholdCount: 2
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "15"
+      Matcher:
+        HttpCode: "200,401"
+      TargetType: ip
+      Name: av-keycloak
+      Port: 8080
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  LoadBalancerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref "TargetGroup"
+          Type: "forward"
+      Conditions:
+        - Field: path-pattern
+          Values: ["/auth"]
+      ListenerArn: !Ref PublicLoadbalancerListenerArn
+      Priority: 4
+
+# Outputs:

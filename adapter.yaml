@@ -2,51 +2,39 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
 
 Parameters:
-  ImageRepoName:
+  AdapterSG:
     Type: String
-    Default: <account-id>.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
-    Description: The ecr repo to use for image deployment
-  ImageTag:
+    Description: Adapter Security Group
+  ApplicationTag:
     Type: String
-    Default: 4.4.0
-    Description: The ecr tag to use for image deployment
+    Description: Used to tag all resources
   ContainerCpu:
     Type: Number
-    Default: 256
     Description: How much CPU to give the container. 1024 is 1 CPU
   ContainerMemory:
     Type: Number
-    Default: 1024
     Description: How much memory in megabytes to give the container
   DesiredCount:
     Type: Number
-    Default: 2
     Description: How many copies of the service task to run
-  ApplicationTag:
+  ImageRepoName:
     Type: String
-    Default: accurate-video
-  Vpc:
-    Type: AWS::EC2::VPC::Id
-    Description: VPC ID
-  PrivateSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Private Subnets
-  PublicLoadbalancerListenerArn:
+    Description: The ecr repo to use for image deployment
+  ImageTag:
     Type: String
-    Description: Public Loadbalancer Listener Arn
+    Description: The ecr tag to use for image deployment
   LogGroupName:
     Type: String
     Description: CloudWatch Log Group Name
   PrivateDNSNamespace:
     Type: String
     Description: Private DNS Namespace
-  AdapterSG:
-    Type: AWS::EC2::SecurityGroup::GroupName
-    Description: Adapter Security Group
-  VpcCidrBlock:
+  PrivateSubnets:
     Type: String
-    Description: VPC CIDR Block
-
+    Description: Private Subnets
+  PublicLoadbalancerListenerArn:
+    Type: String
+    Description: Public Loadbalancer Listener Arn
   RdsDbAllocatedStorage:
     Type: String
     Default: "5"
@@ -61,8 +49,14 @@ Parameters:
       - db.m5.large
     Description: The RDS Database class to use
   RdsDbSecurityGroup:
-    Type: AWS::EC2::SecurityGroup::GroupName
+    Type: String
     Description: Adapter RDS Security Group
+  Vpc:
+    Type: String
+    Description: VPC ID
+  VpcCidrBlock:
+    Type: String
+    Description: VPC CIDR Block
 
 Resources:
   ################################ --- ################################
@@ -70,7 +64,7 @@ Resources:
   AuthRunnerSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: "Auth Runner secret"
+      Description: Auth Runner secret
       GenerateSecretString:
         SecretStringTemplate: '{"username": "runner"}'
         GenerateStringKey: "password"
@@ -85,8 +79,8 @@ Resources:
   RdsDbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: "AccurateVideo-Adapter-DB-Subnet-group"
-      SubnetIds: !Ref PrivateSubnets
+      DBSubnetGroupDescription: AccurateVideo-Adapter-DB-Subnet-group
+      SubnetIds: !Split [ ',', !Ref PrivateSubnets ]
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -94,7 +88,7 @@ Resources:
   RdsInstanceSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: "RDS instance secret"
+      Description: RDS instance secret
       GenerateSecretString:
         SecretStringTemplate: '{"username": "postgres"}'
         GenerateStringKey: "password"
@@ -131,8 +125,8 @@ Resources:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: av-adapter
-      Cpu: !Ref "ContainerCpu"
-      Memory: !Ref "ContainerMemory"
+      Cpu: !Ref ContainerCpu
+      Memory: !Ref ContainerMemory
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
@@ -140,15 +134,15 @@ Resources:
       TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       ContainerDefinitions:
         - Name: av-adapter
-          Cpu: !Ref "ContainerCpu"
-          Memory: !Ref "ContainerMemory"
+          Cpu: !Ref ContainerCpu
+          Memory: !Ref ContainerMemory
           Image: !Sub ${ImageRepoName}:${ImageTag}
           PortMappings:
             - ContainerPort: 8080
             - ContainerPort: 5701
             - ContainerPort: 5699
           LogConfiguration:
-            LogDriver: "awslogs"
+            LogDriver: awslogs
             Options:
               awslogs-group: !Ref LogGroupName
               awslogs-region: !Ref AWS::Region
@@ -165,27 +159,27 @@ Resources:
             - Name: AUTH_JWT_ENABLED
               Value: "true"
             - Name: AUTH_JWT_ISSUER
-              Value: "https://keycloak.codemill.cloud/auth/realms/av-dev"
+              Value: https://keycloak.codemill.cloud/auth/realms/av-dev
             - Name: AUTH_JWT_JWK_FILENAME
-              Value: "https://keycloak.codemill.cloud/auth/realms/av-dev/protocol/openid-connect/certs"
+              Value: https://keycloak.codemill.cloud/auth/realms/av-dev/protocol/openid-connect/certs
             - Name: AUTH_JWT_USERNAME
-              Value: "preferred_username"
+              Value: preferred_username
             - Name: DELETION_PHYSICAL_FILE_ENABLED
               Value: "false"
             - Name: QUARKUS_DATASOURCE_DRIVER
-              Value: "org.postgresql.Driver"
+              Value: org.postgresql.Driver
             - Name: QUARKUS_FLYWAY_BASELINE-ON-MIGRATE
               Value: "false"
             - Name: QUARKUS_FLYWAY_MIGRATE-AT-START
               Value: "false"
             - Name: QUARKUS_HIBERNATE-ORM_DIALECT
-              Value: "org.hibernate.dialect.HSQLDialect"
+              Value: org.hibernate.dialect.HSQLDialect
             - Name: QUARKUS_HIBERNATE-ORM_LOG_SQL
               Value: "false"
             - Name: QUARKUS_HTTP_CORS
               Value: "true"
             - Name: QUARKUS_LOG_LEVEL
-              Value: "INFO"
+              Value: INFO
             - Name: QUARKUS_SECURITY_USERS_FILE_ENABLED
               Value: "false"
             - Name: QUARKUS_VERTX_CLUSTER_HOST
@@ -197,15 +191,15 @@ Resources:
             - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_PORT
               Value: "5699"
             - Name: HTTP_PATH_PREFIX
-              Value: "/api"
+              Value: /api
             - Name: CLUSTER_XML
-              Value: "/opt/ecs-cluster.xml"
+              Value: /opt/ecs-cluster.xml
 
               #KEEP everything under this line
             - Name: DB_HOST
               Value: !GetAtt DBInstance.Endpoint.Address
             - Name: HZE_CLUSTER_NAME_REGEXP
-              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video"
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video
             - Name: HZE_SERVICE_NAME_REGEXP
               Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+"
             - Name: KEYCLOAK_HOST
@@ -247,27 +241,27 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - "secretsmanager:GetSecretValue"
+                  - secretsmanager:GetSecretValue
                 Resource:
                   - !Ref RdsInstanceSecret
                   - !Ref AuthRunnerSecret
               - Effect: Allow
                 Action:
-                  - "ecs:ListClusters"
-                  - "ecs:ListServices"
-                  - "ecs:ListTasks"
-                  - "ecs:DescribeTasks"
+                  - ecs:ListClusters
+                  - ecs:ListServices
+                  - ecs:ListTasks
+                  - ecs:DescribeTasks
                 Resource: "*"
               - Effect: Allow
                 Action:
-                  - "aws-marketplace:RegisterUsage"
+                  - aws-marketplace:RegisterUsage
                 Resource: "*"
               - Effect: Allow
                 Action:
-                  - "s3:ListBucket"
-                  - "s3:HeadObject"
-                  - "s3:GetObject"
-                  - "s3:PutObject"
+                  - s3:ListBucket
+                  - s3:HeadObject
+                  - s3:GetObject
+                  - s3:PutObject
                 Resource: "*"
       Tags:
         - Key: application
@@ -301,17 +295,17 @@ Resources:
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
-      DesiredCount: !Ref "DesiredCount"
+      DesiredCount: !Ref DesiredCount
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref AdapterSG
-          Subnets: !Ref PrivateSubnets
-      TaskDefinition: !Ref "TaskDefinition"
+          Subnets: !Split [ ',', !Ref PrivateSubnets ]
+      TaskDefinition: !Ref TaskDefinition
       LoadBalancers:
         - ContainerName: av-adapter
           ContainerPort: 8080
-          TargetGroupArn: !Ref "TargetGroup"
+          TargetGroupArn: !Ref TargetGroup
       ServiceRegistries:
         - RegistryArn: !GetAtt DiscoveryService.Arn
           Port: 8080
@@ -346,19 +340,19 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       Actions:
-        - TargetGroupArn: !Ref "TargetGroup"
-          Type: "forward"
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
       Conditions:
         - Field: path-pattern
-          Values: ["/api/*"]
+          Values: [/api/*]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
       Priority: 2
 
 Outputs:
   AuthRunnerSecretArn:
     Description: Secrets Manager Secret ARN for Auth Runner
-    Value: !Ref "AuthRunnerSecret"
+    Value: !Ref AuthRunnerSecret
 
   ServiceName:
     Description: Service name
-    Value: !GetAtt "DiscoveryService.Name"
+    Value: !GetAtt DiscoveryService.Name

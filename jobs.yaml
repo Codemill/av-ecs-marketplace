@@ -2,68 +2,62 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Deploy a service on AWS Fargate, hosted in a private subnet
 
 Parameters:
-  ImageRepoName:
+  AdapterServiceName:
     Type: String
-    Default: <account-id>.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
-    Description: The docker image repo to use for image deployment
-  ImageTag:
-    Type: String
-    Default: 4.4.0
-    Description: The docker image tag to use for image deployment
-  ContainerCpu:
-    Type: Number
-    Default: 512
-    Description: How much CPU to give the container. 1024 is 1 CPU
-  ContainerMemory:
-    Type: Number
-    Default: 1024
-    Description: How much memory in megabytes to give the container
-  DesiredCount:
-    Type: Number
-    Default: 2
-    Description: How many copies of the service task to run
+    Description: Adapter Service Name
   ApplicationTag:
     Type: String
-    Default: accurate-video
     Description: Used to tag all resources
-  BlackFrameLocation:
+  AuthRunnerSecretArn:
     Type: String
-    Default: s3://av-black-frame-codemill/black25.mp4
-    Description: Black frame file used
-  BlackFrameDuration:
-    Type: String
-    Default: "1200"
-    Description: Black frame duration
-  BlackFrameNumerator:
-    Type: String
-    Default: "25"
-    Description: Black frame numerator
-  BlackFrameDenominator:
-    Type: String
-    Default: "1"
-    Description: Black frame denominator
+    Description: Auth Runner Secrets Manager Arn
   AwsRole:
     Type: String
     Default: ""
     Description: IAM role that Elemental can use to access different media locations
-  PrivateSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Private Subnets
+  BlackFrameDenominator:
+    Type: String
+    Default: "1"
+    Description: Black frame denominator
+  BlackFrameDuration:
+    Type: String
+    Default: "1200"
+    Description: Black frame duration
+  BlackFrameLocation:
+    Type: String
+    Default: s3://av-black-frame-codemill/black25.mp4
+    Description: Black frame file used
+  BlackFrameNumerator:
+    Type: String
+    Default: "25"
+    Description: Black frame numerator
+  ContainerCpu:
+    Type: Number
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Description: How much memory in megabytes to give the container
+  DesiredCount:
+    Type: Number
+    Description: How many copies of the service task to run
+  ImageRepoName:
+    Type: String
+    Description: The docker image repo to use for image deployment
+  ImageTag:
+    Type: String
+    Description: The docker image tag to use for image deployment
+  JobsSG:
+    Type: String
+    Description: Jobs Security Group
   LogGroupName:
     Type: String
     Description: CloudWatch Log Group Name
-  JobsSG:
-    Type: AWS::EC2::SecurityGroup::GroupName
-    Description: Jobs Security Group
-  AuthRunnerSecretArn:
-    Type: String
-    Description: Auth Runner Secrets Manager Arn
   PrivateDNSNamespace:
     Type: String
     Description: Private DNS Namespace
-  AdapterServiceName:
+  PrivateSubnets:
     Type: String
-    Description: Adapter Service Name
+    Description: Private Subnets
   VpcCidrBlock:
     Type: String
     Description: VPC CIDR Block
@@ -217,7 +211,7 @@ Resources:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref JobsSG
-          Subnets: !Ref PrivateSubnets
+          Subnets: !Split [ ',', !Ref PrivateSubnets ]
       TaskDefinition: !Ref TaskDefinition
       Tags:
         - Key: application

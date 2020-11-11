@@ -1,77 +1,46 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: 2010-09-09
 Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
 
 Parameters:
-  ImageRepoName:
+  ApplicationTag:
     Type: String
-    Default: <account-id>.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
-    Description: The repo and tag to use for image deployment
-  ImageTag:
+    Description: Used to tag all resources
+  ConfigBucketName:
     Type: String
-    Default: 4.4.0
-    Description: The ecr repo and tag to use for image deployment
+    Description: S3 Config bucket name
   ContainerCpu:
     Type: Number
-    Default: 256
     Description: How much CPU to give the container. 1024 is 1 CPU
   ContainerMemory:
     Type: Number
-    Default: 512
     Description: How much memory in megabytes to give the container
   DesiredCount:
     Type: Number
-    Default: 2
     Description: How many copies of the service task to run
-  ApplicationTag:
-    Type: String
-    Default: "accurate-video"
-  Vpc:
-    Type: AWS::EC2::VPC::Id
-    Description: "VPC ID"
-  PrivateSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: "Private Subnets"
-  PublicLoadbalancerListenerArn:
-    Type: String
-    Description: "Public Loadbalancer Listener Arn"
   FrontendSettingsUpdatedTopicArn:
     Type: String
-    Description: "Frontend Settings-updated Topic Arn"
-  ConfigBucketName:
+    Description: Frontend Settings-updated Topic Arn
+  FrontendSG:
     Type: String
-    Description: "S3 Config bucket name"
+    Description: Frontend Security Group
+  ImageRepoName:
+    Type: String
+    Description: The repo and tag to use for image deployment
+  ImageTag:
+    Type: String
+    Description: The ecr repo and tag to use for image deployment
   LogGroupName:
     Type: String
-    Description: "CloudWatch Log Group Name"
-  FrontendSG:
-    Type: AWS::EC2::SecurityGroup::GroupName
-    Description: "Frontend Security Group"
-
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label:
-          default: "Service configuration"
-        Parameters:
-          - ContainerCpu
-          - ContainerMemory
-          - DesiredCount
-          - Vpc
-          - PrivateSubnets
-          - PublicLoadbalancerListenerArn
-          - FrontendSettingsUpdatedTopicArn
-          - ConfigBucketName
-          - LogGroupName
-          - FrontendSG
-      - Label:
-          default: "Image configuration"
-        Parameters:
-          - ImageRepoName
-          - ImageTag
-      - Label:
-          default: "Other"
-        Parameters:
-          - ApplicationTag
+    Description: CloudWatch Log Group Name
+  PrivateSubnets:
+    Type: String
+    Description: Private Subnets
+  PublicLoadbalancerListenerArn:
+    Type: String
+    Description: Public Loadbalancer Listener Arn
+  Vpc:
+    Type: String
+    Description: VPC ID
 
 Resources:
   TaskDefinition:
@@ -102,7 +71,7 @@ Resources:
           LogConfiguration:
             LogDriver: "awslogs"
             Options:
-              awslogs-group: LogGroup
+              awslogs-group: !Ref LogGroupName
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-frontend
           PortMappings:
@@ -156,7 +125,7 @@ Resources:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref FrontendSG
-          Subnets: !Ref PrivateSubnets
+          Subnets: !Split [ ',', !Ref PrivateSubnets ]
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
