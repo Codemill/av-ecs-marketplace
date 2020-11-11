@@ -3,37 +3,6 @@ Description: >
   Master template which will deploy infrastructure and services as nested stacks.
 
 Parameters:
-  TemplatesS3Bucket:
-    Type: String
-    Description: The S3 bucket containing the CloudFormation templates
-    Default: https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation
-  Vpc:
-    Type: AWS::EC2::VPC::Id
-    Description: The VPC which AccurateVideo will be deployed in
-  PrivateSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: The Private Subnets which the ECS Services and RDS Database will be deployed in
-  PublicSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: The Public Subnets which the Application Load Balancer will be deployed in
-  ApplicationTag:
-    Type: String
-    Default: accurate-video
-    Description: Used to tag all resources
-  LogsRetention:
-    Type: Number
-    Default: 14
-    Description: Number of days that application logs are saved
-  CertificateArn:
-    Type: String
-    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
-  HostedZoneId:
-    Type: AWS::Route53::HostedZone::Id
-    Description: Route53 Hosted Zone Id
-  LoadBalancerDomainName:
-    Type: String
-    Description: Domain name that will be given to the load balancer (e.g. av.example.com)
-
   AdapterRdsDbAllocatedStorage:
     Type: String
     Default: "5"
@@ -47,7 +16,16 @@ Parameters:
       - db.t3.large
       - db.m5.large
     Description: The RDS Database class to use
-
+  ApplicationTag:
+    Type: String
+    Default: accurate-video
+    Description: Used to tag all resources
+  CertificateArn:
+    Type: String
+    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Route53 Hosted Zone Id
   KeycloakRdsDbAllocatedStorage:
     Type: String
     Default: "5"
@@ -61,6 +39,26 @@ Parameters:
       - db.t3.large
       - db.m5.large
     Description: The RDS Database class to use
+  LoadBalancerDomainName:
+    Type: String
+    Description: Domain name that will be given to the load balancer (e.g. av.example.com)
+  LogsRetention:
+    Type: Number
+    Default: 14
+    Description: Number of days that application logs are saved
+  PrivateSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The Private Subnets which the ECS Services and RDS Database will be deployed in
+  PublicSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The Public Subnets which the Application Load Balancer will be deployed in
+  TemplatesS3Bucket:
+    Type: String
+    Description: The S3 bucket containing the CloudFormation templates
+    Default: https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation
+  Vpc:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC which AccurateVideo will be deployed in
 
 Metadata:
   AWS::CloudFormation::Interface:
