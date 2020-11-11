@@ -37,11 +37,9 @@ Parameters:
     Description: Public Loadbalancer Listener Arn
   RdsDbAllocatedStorage:
     Type: String
-    Default: "5"
     Description: Size of the database in GB
   RdsDbClass:
     Type: String
-    Default: db.t3.small
     AllowedValues:
       - db.t3.small
       - db.t3.medium

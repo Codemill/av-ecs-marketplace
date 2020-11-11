@@ -13,23 +13,18 @@ Parameters:
     Description: Auth Runner Secrets Manager Arn
   AwsRole:
     Type: String
-    Default: ""
     Description: IAM role that Elemental can use to access different media locations
   BlackFrameDenominator:
     Type: String
-    Default: "1"
     Description: Black frame denominator
   BlackFrameDuration:
     Type: String
-    Default: "1200"
     Description: Black frame duration
   BlackFrameLocation:
     Type: String
-    Default: s3://av-black-frame-codemill/black25.mp4
     Description: Black frame file used
   BlackFrameNumerator:
     Type: String
-    Default: "25"
     Description: Black frame numerator
   ContainerCpu:
     Type: Number
