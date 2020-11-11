@@ -323,23 +323,9 @@ Outputs:
   VpcId:
     Description: The ID of the VPC that this stack is deployed in
     Value: !Ref Vpc
-  PublicSubnetOne:
-    Description: Public subnet one
-    Value: !Ref PublicSubnetOne
-  PublicSubnetTwo:
-    Description: Public subnet two
-    Value: !Ref PublicSubnetTwo
-  PublicSubnetThree:
-    Condition: UseThreeAz
-    Description: Public subnet two
-    Value: !Ref PublicSubnetTwo
-  PrivateSubnetOne:
-    Description: Private subnet one
-    Value: !Ref PrivateSubnetOne
-  PrivateSubnetTwo:
-    Description: Private subnet two
-    Value: !Ref PrivateSubnetTwo
-  PrivateSubnetThree:
-    Condition: UseThreeAz
-    Description: Private subnet two
-    Value: !Ref PrivateSubnetTwo
+  PrivateSubnets:
+    Description: Private subnets in the VPC
+    Value: !If [ UseThreeAz , !Join [ ",", [ !Ref PrivateSubnetOne, !Ref PrivateSubnetTwo, !Ref PrivateSubnetThree ] ] , !Join [ ",", [ !Ref PrivateSubnetOne, !Ref PrivateSubnetTwo] ] ]
+  PublicSubnets:
+    Description: Public subnets in the VPC
+    Value: !If [ UseThreeAz , !Join [ ",", [ !Ref PublicSubnetOne, !Ref PublicSubnetTwo, !Ref PublicSubnetThree ] ] , !Join [ ",", [ !Ref PublicSubnetOne, !Ref PublicSubnetTwo] ] ]
