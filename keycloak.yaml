@@ -106,7 +106,33 @@ Resources:
     Properties:
       Description: "RDS instance secret"
       GenerateSecretString:
-        SecretStringTemplate: '{"username": "keycloak"}'
+        SecretStringTemplate: '{"username": "kcadmin"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  BackendSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: "RDS instance secret"
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "backend"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  AdminSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: "RDS instance secret"
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "admin"}'
         GenerateStringKey: "password"
         PasswordLength: 16
         ExcludeCharacters: '"@/\'
@@ -146,12 +172,12 @@ Resources:
           Secrets:
             - Name: DB_USER
               ValueFrom: !Sub "${RdsInstanceSecret}:username::"
-            - Name: DB_PASS
+            - Name: DB_PASSWORD
               ValueFrom: !Sub "${RdsInstanceSecret}:password::"
             - Name: AV_BACKEND_PASSWORD
-              ValueFrom: ""
+              ValueFrom: !Sub "${BackendSecret}:password::"
             - Name: AV_ADMIN_PASSWORD
-              ValueFrom: ""
+              ValueFrom: !Sub "${AdminSecret}:password::"
             - Name: KEYCLOAK_USER
               ValueFrom: !Sub "${KeycloakSecret}:username::"
             - Name: KEYCLOAK_PASSWORD
@@ -182,6 +208,9 @@ Resources:
                   - "secretsmanager:GetSecretValue"
                 Resource:
                   - !Ref RdsInstanceSecret
+                  - !Ref BackendSecret
+                  - !Ref KeycloakSecret
+                  - !Ref AdminSecret
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -214,7 +243,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       HealthCheckIntervalSeconds: 120
-      HealthCheckPath: /api/asset #TODO
+      HealthCheckPath: /auth/realms/master
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 60
       HealthyThresholdCount: 2
@@ -241,8 +270,11 @@ Resources:
           Type: "forward"
       Conditions:
         - Field: path-pattern
-          Values: ["/auth"]
+          Values: ["/auth/*"]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
       Priority: 4
 
-# Outputs:
+Outputs:
+  BackendSecretArn:
+    Description: Secrets Manager Secret ARN for Keycloak Backend
+    Value: !Ref BackendSecret

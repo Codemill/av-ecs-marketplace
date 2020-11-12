@@ -23,6 +23,12 @@ Parameters:
   ImageTag:
     Type: String
     Description: The ecr tag to use for image deployment
+  KeycloakBackendSecret:
+    Type: String
+    Description: SecretsManager ARN for Keycloak Backend
+  KeycloakHost:
+    Type: String
+    Description: Keycloak host name
   LogGroupName:
     Type: String
     Description: CloudWatch Log Group Name
@@ -101,7 +107,7 @@ Resources:
     Properties:
       AllocatedStorage: !Ref RdsDbAllocatedStorage
       DBInstanceClass: !Ref RdsDbClass
-      DBName: accurate-video
+      DBName: accurate_video
       DBSubnetGroupName: !Ref RdsDbSubnetGroup
       DeletionProtection: true
       Engine: Postgres
@@ -146,54 +152,10 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-adapter
           Environment:
-            - Name: ACL_ENABLED
-              Value: "false"
-            - Name: ACL_STORAGE_ENABLED
-              Value: "false"
-            - Name: AUTH_ENABLED
-              Value: "true"
-            - Name: AUTH_FALLBACK_USERNAME
-              Value: "false"
-            - Name: AUTH_JWT_ENABLED
-              Value: "true"
-            - Name: AUTH_JWT_ISSUER
-              Value: https://keycloak.codemill.cloud/auth/realms/av-dev
-            - Name: AUTH_JWT_JWK_FILENAME
-              Value: https://keycloak.codemill.cloud/auth/realms/av-dev/protocol/openid-connect/certs
-            - Name: AUTH_JWT_USERNAME
-              Value: preferred_username
-            - Name: DELETION_PHYSICAL_FILE_ENABLED
-              Value: "false"
-            - Name: QUARKUS_DATASOURCE_DRIVER
-              Value: org.postgresql.Driver
-            - Name: QUARKUS_FLYWAY_BASELINE-ON-MIGRATE
-              Value: "false"
-            - Name: QUARKUS_FLYWAY_MIGRATE-AT-START
-              Value: "false"
-            - Name: QUARKUS_HIBERNATE-ORM_DIALECT
-              Value: org.hibernate.dialect.HSQLDialect
-            - Name: QUARKUS_HIBERNATE-ORM_LOG_SQL
-              Value: "false"
-            - Name: QUARKUS_HTTP_CORS
-              Value: "true"
-            - Name: QUARKUS_LOG_LEVEL
-              Value: INFO
             - Name: QUARKUS_SECURITY_USERS_FILE_ENABLED
               Value: "false"
-            - Name: QUARKUS_VERTX_CLUSTER_HOST
-              Value: "0.0.0.0"
-            - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_HOST
-              Value: av-adapter.av.local
-            - Name: QUARKUS_VERTX_CLUSTER_PORT
-              Value: "5699"
-            - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_PORT
-              Value: "5699"
-            - Name: HTTP_PATH_PREFIX
-              Value: /api
             - Name: CLUSTER_XML
               Value: /opt/ecs-cluster.xml
-
-              #KEEP everything under this line
             - Name: DB_HOST
               Value: !GetAtt DBInstance.Endpoint.Address
             - Name: HZE_CLUSTER_NAME_REGEXP
@@ -201,13 +163,10 @@ Resources:
             - Name: HZE_SERVICE_NAME_REGEXP
               Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+"
             - Name: KEYCLOAK_HOST
-              Value: ""
-            - Name: KEYCLOAK_BACKEND_PASSWORD
-              Value: ""
+              Value: !Ref KeycloakHost
             - Name: HZE_IPV4_CIDR
               Value: !Ref VpcCidrBlock
           Secrets:
-              #KEEP everything under this line
             - Name: DB_USER
               ValueFrom: !Sub "${RdsInstanceSecret}:username::"
             - Name: DB_PASS
@@ -216,6 +175,8 @@ Resources:
               ValueFrom: !Sub "${AuthRunnerSecret}:username::"
             - Name: AUTH_RUNNER_PASSWORD
               ValueFrom: !Sub "${AuthRunnerSecret}:password::"
+            - Name: KEYCLOAK_BACKEND_PASSWORD
+              ValueFrom: !Sub "${KeycloakBackendSecret}:password::"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -243,6 +204,7 @@ Resources:
                 Resource:
                   - !Ref RdsInstanceSecret
                   - !Ref AuthRunnerSecret
+                  - !Ref KeycloakBackendSecret
               - Effect: Allow
                 Action:
                   - ecs:ListClusters

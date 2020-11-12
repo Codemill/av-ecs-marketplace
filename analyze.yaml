@@ -5,12 +5,6 @@ Parameters:
   AnalyzeSG:
     Type: String
     Description: Analyze Security Group
-  ApAnalyzeCacheDays:
-    Type: String
-    Description: Number of days
-  ApAnalyzeCacheDir:
-    Type: String
-    Description: ""
   ApplicationTag:
     Type: String
     Description: Used to tag all resources  
@@ -38,9 +32,6 @@ Parameters:
   PublicLoadbalancerListenerArn:
     Type: String
     Description: Public Loadbalancer Listener Arn
-  QuarkusHttpCors:
-    Type: String
-    Description: ""
   Vpc:
     Type: String
     Description: VPC ID
@@ -76,20 +67,10 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-analyze
           WorkingDirectory: "/opt/"
-          Environment:
-            - Name: AP_ANALYZE_CACHE_DAYS
-              Value: !Ref ApAnalyzeCacheDays
-            - Name: AP_ANALYZE_CACHE_DIR
-              Value: !Ref ApAnalyzeCacheDir
-            - Name: QUARKUS_HTTP_CORS
-              Value: !Ref QuarkusHttpCors
-            - Name: HTTP_PATH_PREFIX
-              Value: "/api"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
 
-  # This is a role which is used by the ECS tasks themselves.
   ECSTaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -117,9 +98,6 @@ Resources:
         - Key: application
           Value: !Ref ApplicationTag
 
-  # The service. The service is a resource which allows you to run multiple
-  # copies of a type of task, and gather up their logs and metrics, as well
-  # as monitor the number of running tasks and replace any that have crashed
   Service:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
@@ -144,11 +122,6 @@ Resources:
         - Key: application
           Value: !Ref ApplicationTag
 
-  # A target group. This is used for keeping track of all the tasks, and
-  # what IP addresses / port numbers they have. You can query it yourself,
-  # to use the addresses yourself, but most often this target group is just
-  # connected to an application load balancer, or network load balancer, so
-  # it can automatically distribute traffic across all the targets.
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -172,7 +145,6 @@ Resources:
         - Key: application
           Value: !Ref ApplicationTag
 
-  # Create a rule on the load balancer for routing traffic to the target group
   LoadBalancerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:

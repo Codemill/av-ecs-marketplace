@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  Master template which will deploy infrastructure and services as nested stacks.
+  Main template which will deploy infrastructure and services as nested stacks.
 
 Parameters:
   AdapterRdsDbAllocatedStorage:
@@ -149,26 +149,18 @@ Metadata:
 Mappings:
   Service:
     Adapter:
-      ContainerCpu: 256
+      ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
       ImageTag: marketplacetest-3
     Analyze:
-      ApAnalyzeCacheDays: "5"
-      ApAnalyzeCacheDir: "/tmp/wav"
-      ContainerCpu: 256
-      ContainerMemory: 512
+      ContainerCpu: 512
+      ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
       ImageTag: marketplacetest-3
-      QuarkusHttpCors: "true"
     Jobs:
-      AwsRole: ""
-      BlackFrameDenominator: "1"
-      BlackFrameDuration: "1200"
-      BlackFrameLocation: "s3://av-black-frame-codemill/black25.mp4"
-      BlackFrameNumerator: "25"
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
@@ -181,8 +173,8 @@ Mappings:
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
       ImageTag: marketplacetest-3
     Keycloak:
-      ContainerCpu: 256
-      ContainerMemory: 512
+      ContainerCpu: 512
+      ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-keycloak
       ImageTag: marketplacetest-3
@@ -209,7 +201,7 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         CertificateArn: !Ref CertificateArn
         HostedZoneId: !Ref HostedZoneId
-        LoadBalancerDomainName: !Sub ${LoadBalancerDomainName}.
+        LoadBalancerDomainName: !Sub "${LoadBalancerDomainName}."
         LogsRetention: !Ref LogsRetention
         PublicSubnets: !If [CreateVpc, !GetAtt VpcStack.Outputs.PublicSubnets, !Join [",", !Ref PublicSubnets]]
         Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
@@ -227,6 +219,8 @@ Resources:
         DesiredCount: !FindInMap [Service, Adapter, DesiredCount]
         ImageRepoName: !FindInMap [Service, Adapter, ImageRepoName]
         ImageTag: !FindInMap [Service, Adapter, ImageTag]
+        KeycloakBackendSecret: !GetAtt KeycloakStack.Outputs.BackendSecretArn
+        KeycloakHost: !Sub "https://${LoadBalancerDomainName}"
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
         PrivateSubnets:  !If [CreateVpc, !GetAtt VpcStack.Outputs.PrivateSubnets, !Join [",", !Ref PrivateSubnets]]
@@ -264,8 +258,6 @@ Resources:
     Properties:
       Parameters:
         AnalyzeSG: !GetAtt InfrastructureStack.Outputs.AnalyzeSecurityGroup
-        ApAnalyzeCacheDays: !FindInMap [Service, Analyze, ApAnalyzeCacheDays]
-        ApAnalyzeCacheDir: !FindInMap [Service, Analyze, ApAnalyzeCacheDir]
         ApplicationTag: !Ref ApplicationTag
         ContainerCpu: !FindInMap [Service, Analyze, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Analyze, ContainerMemory]
@@ -275,7 +267,6 @@ Resources:
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateSubnets:  !If [CreateVpc, !GetAtt VpcStack.Outputs.PrivateSubnets, !Join [",", !Ref PrivateSubnets]]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
-        QuarkusHttpCors: !FindInMap [Service, Analyze, QuarkusHttpCors]
         Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
       TemplateURL: !Sub ${TemplatesS3Bucket}/analyze.yaml
       TimeoutInMinutes: 30
@@ -287,11 +278,6 @@ Resources:
         AdapterServiceName: !GetAtt AdapterStack.Outputs.ServiceName
         ApplicationTag: !Ref ApplicationTag
         AuthRunnerSecretArn: !GetAtt AdapterStack.Outputs.AuthRunnerSecretArn
-        AwsRole: !FindInMap [Service, Jobs, AwsRole]
-        BlackFrameDenominator: !FindInMap [Service, Jobs, BlackFrameDenominator]
-        BlackFrameDuration: !FindInMap [Service, Jobs, BlackFrameDuration]
-        BlackFrameLocation: !FindInMap [Service, Jobs, BlackFrameLocation]
-        BlackFrameNumerator: !FindInMap [Service, Jobs, BlackFrameNumerator]
         ContainerCpu: !FindInMap [Service, Jobs, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Jobs, ContainerMemory]
         DesiredCount: !FindInMap [Service, Jobs, DesiredCount]
@@ -305,7 +291,7 @@ Resources:
       TemplateURL: !Sub ${TemplatesS3Bucket}/jobs.yaml
       TimeoutInMinutes: 30
 
-  KeycloakStack: #TODO: Check that all parameters actually exist
+  KeycloakStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:

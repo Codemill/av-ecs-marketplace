@@ -11,21 +11,6 @@ Parameters:
   AuthRunnerSecretArn:
     Type: String
     Description: Auth Runner Secrets Manager Arn
-  AwsRole:
-    Type: String
-    Description: IAM role that Elemental can use to access different media locations
-  BlackFrameDenominator:
-    Type: String
-    Description: Black frame denominator
-  BlackFrameDuration:
-    Type: String
-    Description: Black frame duration
-  BlackFrameLocation:
-    Type: String
-    Description: Black frame file used
-  BlackFrameNumerator:
-    Type: String
-    Description: Black frame numerator
   ContainerCpu:
     Type: Number
     Description: How much CPU to give the container. 1024 is 1 CPU
@@ -84,38 +69,12 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-jobs
           Environment:
-            - Name: QUARKUS_VERTX_CLUSTER_HOST
-              Value: "0.0.0.0"
-            - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_HOST
-              Value: av-jobs.av.local
-            - Name: QUARKUS_VERTX_CLUSTER_PORT
-              Value: "5699"
-            - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_PORT
-              Value: "5699"
-            - Name: AV_RUNNER_BLACK_FRAME_LOCATION
-              Value: !Ref BlackFrameLocation
-            - Name: AV_RUNNER_BLACK_FRAME_DURATION
-              Value: !Ref BlackFrameDuration
-            - Name: AV_RUNNER_BLACK_FRAME_NUMERATOR
-              Value: !Ref BlackFrameNumerator
-            - Name: AV_RUNNER_BLACK_FRAME_DENOMINATOR
-              Value: !Ref BlackFrameDenominator
-            - Name: AV_RUNNER_LOWRES_TEMPLATE_ID #TODO: Can probably be removed since default values will be used
-              Value: !GetAtt MediaConvertPresetStandardH264.Name
-            - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID #TODO: Can probably be removed since default values will be used
-              Value: !GetAtt MediaConvertPresetWav.Name
-            - Name: AV_RUNNER_EXECUTOR_POLL_INTERVAL 
-              Value: PT1M
-            - Name: AV_RUNNER_BINDIR
-              Value: /usr/local/bin
             - Name: CLUSTER_XML
               Value: "/opt/ecs-cluster.xml"
-
-              #KEEP everything under this line
             - Name: AP_ADAPTER_HOST
               Value: !Sub http://${AdapterServiceName}.av.local:8080
             - Name: ELEMENTAL_AWS_ROLE
-              Value: !Ref AwsRole
+              Value: !GetAtt ElementalRole.Arn
             - Name: HZE_CLUSTER_NAME_REGEXP
               Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video
             - Name: HZE_SERVICE_NAME_REGEXP
@@ -123,7 +82,6 @@ Resources:
             - Name: HZE_IPV4_CIDR
               Value: !Ref VpcCidrBlock
           Secrets:
-              #KEEP everything under this line
             - Name: AP_ADAPTER_USERNAME
               ValueFrom: !Sub "${AuthRunnerSecretArn}:username::"
             - Name: AP_ADAPTER_PASSWORD
@@ -160,6 +118,38 @@ Resources:
                   - ecs:ListTasks
                   - ecs:DescribeTasks
                 Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:HeadObject
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - sts:PassRole
+                Resource: 
+                  - !GetAtt ElementalRole.Arn
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  ElementalRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [mediaconvert.amazonaws.com]
+            Action: [sts:AssumeRole]
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSElementalMediaConvertFullAccess
+      Policies:
+        - PolicyName: ElementalRolePolicy
+          PolicyDocument:
+            Statement:
               - Effect: Allow
                 Action:
                   - s3:ListBucket
