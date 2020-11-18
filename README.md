@@ -10,14 +10,12 @@
 - Route53 Hosted Zone in which a DNS record pointing to the load balancer will be created [Create Hosted Zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingHostedZone.html)
 - Certificate stored and validated in CertificateManager which covers the domain name that the load balancer will be given [Create certificate in ACM](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html)
 
-### Configuration
+### Deployment
+First log in to your AWS account, then click the launch button below to get to the launch wizard in CloudFormation:
 
-### Create ECS cluster running Accurate Video
-* Log in to your AWS account
+[<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https%3A%2F%2Fs3.eu-north-1.amazonaws.com%2Fcf-templates-13ptaa61e3457-eu-north-1%2F2020323trb-main.yaml)
 
-* [Launch CloudFormation Stack](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https%3A%2F%2Fs3.eu-north-1.amazonaws.com%2Fcf-templates-13ptaa61e3457-eu-north-1%2F2020323trb-main.yaml) will take you to the launch wizard in CloudFormation.
-
-* Change region to where you want Accurate Video to be deployed.
+Then change region to where you want Accurate Video to be deployed and follow the CloudFormation wizard.
 
 
 ## Architecture
