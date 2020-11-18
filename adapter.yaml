@@ -255,6 +255,7 @@ Resources:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
+      ServiceName: adapter
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
@@ -276,7 +277,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       HealthCheckIntervalSeconds: 120
-      HealthCheckPath: /api/asset
+      HealthCheckPath: /api/health
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 60
       HealthyThresholdCount: 2

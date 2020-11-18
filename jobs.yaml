@@ -69,6 +69,10 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-jobs
           Environment:
+            - Name: AV_RUNNER_LOWRES_TEMPLATE_ID
+              Value: !Ref MediaConvertPresetWav
+            - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID
+              Value: !Ref MediaConvertPresetStandardH264
             - Name: AP_ADAPTER_HOST
               Value: !Sub http://${AdapterServiceName}.av.local:8080
             - Name: ELEMENTAL_AWS_ROLE
@@ -187,6 +191,7 @@ Resources:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
+      ServiceName: jobs
       ServiceRegistries:
         - RegistryArn: !GetAtt DiscoveryService.Arn
           Port: 5699
@@ -203,9 +208,9 @@ Resources:
   MediaConvertPresetStandardH264:
     Type: AWS::MediaConvert::Preset
     Properties: 
-      Category: String
-      Description: String
-      Name: standard_h264_follow
+      Category: String #TODO
+      Description: String #TODO
+      Name: accuratevideo_standard_h264_follow
       SettingsJson: 
         VideoDescription:
           Width: 1920
@@ -287,9 +292,9 @@ Resources:
   MediaConvertPresetWav:
     Type: AWS::MediaConvert::Preset
     Properties: 
-      Category: String
-      Description: String
-      Name: wav
+      Category: String #TODO
+      Description: String #TODO
+      Name: accuratevideo_wav
       SettingsJson: 
         AudioDescriptions:
           - AudioTypeControl: FOLLOW_INPUT

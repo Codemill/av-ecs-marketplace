@@ -33,6 +33,7 @@ Resources:
   PrivateDnsNamespace:
     Type: AWS::ServiceDiscovery::PrivateDnsNamespace
     Properties:
+      Description: "" #TODO
       Name: av.local
       Vpc: !Ref Vpc
       Tags:
@@ -123,7 +124,9 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
-
+        - Key: Name
+          Value: AccurateVideo - ALB SG
+        
   AdapterRdsDbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -132,6 +135,8 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+        - Key: Name
+          Value: AccurateVideo - Adapter RDS SG
 
   AdapterRdsDbSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
@@ -151,6 +156,8 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+        - Key: Name
+          Value: AccurateVideo - Keycloak RDS SG
 
   KeycloakRdsDbSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
@@ -170,6 +177,8 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+        - Key: Name
+          Value: AccurateVideo - Adapter SG
 
   AdapterSecurityGroupIngressAlb:
     Type: AWS::EC2::SecurityGroupIngress
@@ -219,6 +228,8 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+        - Key: Name
+          Value: AccurateVideo - Frontend SG
 
   FrontendSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
@@ -238,6 +249,8 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+        - Key: Name
+          Value: AccurateVideo - Analyze SG
 
   AnalyzeSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
@@ -257,6 +270,8 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+        - Key: Name
+          Value: AccurateVideo - Jobs SG
 
   JobsSecurityGroupIngressAdapterHazelcast:
     Type: AWS::EC2::SecurityGroupIngress
@@ -286,6 +301,8 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+        - Key: Name
+          Value: AccurateVideo - Keycloak SG
 
   KeycloakSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress

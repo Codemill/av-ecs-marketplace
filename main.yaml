@@ -26,16 +26,16 @@ Parameters:
   CreateVpc:
     Type: String
     Description: Should a VPC be created for you?
-    Default: "false"
+    Default: "no"
     AllowedValues:
-      - "true"
-      - "false"
+      - "yes"
+      - "no"
   CreateVpcCidr:
     Type: String
-    Description: VPC CIDR block (e.g. 10.0.0.0/16)
+    Description: What CIDR block should your VPC have? (e.g. 10.0.0.0/16)
   CreateVpcUseNumberOfAz:
     Type: String
-    Description: How many avaliability zones should the VPC have?
+    Description: How many avaliability zones should the VPC have? Please check that your region supports the number you choose.
     Default: "two"
     AllowedValues:
       - "two"
@@ -62,17 +62,13 @@ Parameters:
   LogsRetention:
     Type: Number
     Default: 14
-    Description: Number of days that application logs are saved
+    Description: Number of days that application logs are saved in CloudWatch Logs
   PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: The Private Subnets which the ECS Services and RDS Database will be deployed in
+    Description: The Private Subnets which the ECS Services and RDS Database will be deployed in (At least two)
   PublicSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: The Public Subnets which the Application Load Balancer will be deployed in
-  TemplatesS3Bucket:
-    Type: String
-    Description: The S3 bucket containing the CloudFormation templates
-    Default: https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation
+    Description: The Public Subnets which the Application Load Balancer will be deployed in (At least two)
   Vpc:
     Type: AWS::EC2::VPC::Id
     Description: The VPC which AccurateVideo will be deployed in
@@ -110,7 +106,6 @@ Metadata:
         Parameters:
           - ApplicationTag
           - LogsRetention
-          - TemplatesS3Bucket
 
     ParameterLabels:
       AdapterRdsDbAllocatedStorage:
@@ -141,8 +136,6 @@ Metadata:
         default: Private Subnets
       PublicSubnets:
         default: Public Subnets
-      TemplatesS3Bucket:
-        default: CloudFormation Templates S3 Bucket
       Vpc:
         default: VPC ID
 
@@ -178,9 +171,12 @@ Mappings:
       DesiredCount: 0
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-keycloak
       ImageTag: 4.4.3-rc.7
+  Common:
+    CloudFormation:
+      Bucket: https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation
 
 Conditions:
-  CreateVpc: !Equals [!Ref CreateVpc, "true"]
+  CreateVpc: !Equals [!Ref CreateVpc, "yes"]
 
 Resources:
   VpcStack:
@@ -191,7 +187,9 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         VpcCidr: !Ref CreateVpcCidr
         NumberOfAvailabilityZones: !Ref CreateVpcUseNumberOfAz
-      TemplateURL: !Sub ${TemplatesS3Bucket}/vpc.yaml
+      TemplateURL: !Sub 
+        - ${TemplatesS3Bucket}/vpc.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
 
   InfrastructureStack:
@@ -205,7 +203,9 @@ Resources:
         LogsRetention: !Ref LogsRetention
         PublicSubnets: !If [CreateVpc, !GetAtt VpcStack.Outputs.PublicSubnets, !Join [",", !Ref PublicSubnets]]
         Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
-      TemplateURL: !Sub ${TemplatesS3Bucket}/infrastructure.yaml
+      TemplateURL: !Sub 
+        - ${TemplatesS3Bucket}/infrastructure.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
 
   AdapterStack:
@@ -230,7 +230,9 @@ Resources:
         RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.AdapterRdsDbSecurityGroup
         Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
         VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
-      TemplateURL: !Sub ${TemplatesS3Bucket}/adapter.yaml
+      TemplateURL: !Sub 
+        - ${TemplatesS3Bucket}/adapter.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
 
   FrontendStack:
@@ -248,7 +250,9 @@ Resources:
         PrivateSubnets:  !If [CreateVpc, !GetAtt VpcStack.Outputs.PrivateSubnets, !Join [",", !Ref PrivateSubnets]]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
         Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
-      TemplateURL: !Sub ${TemplatesS3Bucket}/frontend.yaml
+      TemplateURL: !Sub 
+        - ${TemplatesS3Bucket}/frontend.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
 
   AnalyzeStack:
@@ -266,7 +270,9 @@ Resources:
         PrivateSubnets:  !If [CreateVpc, !GetAtt VpcStack.Outputs.PrivateSubnets, !Join [",", !Ref PrivateSubnets]]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
         Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
-      TemplateURL: !Sub ${TemplatesS3Bucket}/analyze.yaml
+      TemplateURL: !Sub 
+        - ${TemplatesS3Bucket}/analyze.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
 
   JobsStack:
@@ -286,7 +292,9 @@ Resources:
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
         PrivateSubnets:  !If [CreateVpc, !GetAtt VpcStack.Outputs.PrivateSubnets, !Join [",", !Ref PrivateSubnets]]
         VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
-      TemplateURL: !Sub ${TemplatesS3Bucket}/jobs.yaml
+      TemplateURL: !Sub 
+        - ${TemplatesS3Bucket}/jobs.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
 
   KeycloakStack:
@@ -308,7 +316,9 @@ Resources:
         RdsDbClass: !Ref KeycloakRdsDbClass
         RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.KeycloakRdsDbSecurityGroup
         Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
-      TemplateURL: !Sub ${TemplatesS3Bucket}/keycloak.yaml
+      TemplateURL: !Sub 
+        - ${TemplatesS3Bucket}/keycloak.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
 
   GetVpcCidrLambdaStack:
@@ -317,5 +327,7 @@ Resources:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
         Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
-      TemplateURL: !Sub ${TemplatesS3Bucket}/get-vpc-cidr-lambda.yaml
+      TemplateURL: !Sub 
+        - ${TemplatesS3Bucket}/get-vpc-cidr-lambda.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30

@@ -73,7 +73,7 @@ Resources:
         SecretStringTemplate: '{"username": "keycloak"}'
         GenerateStringKey: "password"
         PasswordLength: 16
-        ExcludeCharacters: '"@/\'
+        ExcludeCharacters: "\"`'@/\\"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -109,7 +109,7 @@ Resources:
         SecretStringTemplate: '{"username": "kcadmin"}'
         GenerateStringKey: "password"
         PasswordLength: 16
-        ExcludeCharacters: '"@/\'
+        ExcludeCharacters: "\"`'@/\\"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -122,7 +122,7 @@ Resources:
         SecretStringTemplate: '{"username": "backend"}'
         GenerateStringKey: "password"
         PasswordLength: 16
-        ExcludeCharacters: '"@/\'
+        ExcludeCharacters: "\"`'@/\\"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -135,7 +135,7 @@ Resources:
         SecretStringTemplate: '{"username": "admin"}'
         GenerateStringKey: "password"
         PasswordLength: 16
-        ExcludeCharacters: '"@/\'
+        ExcludeCharacters: "\"`'@/\\"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -225,6 +225,7 @@ Resources:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
+      ServiceName: keycloak
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
@@ -270,7 +271,7 @@ Resources:
           Type: "forward"
       Conditions:
         - Field: path-pattern
-          Values: ["/auth/*"]
+          Values: ["/auth*"]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
       Priority: 3
 

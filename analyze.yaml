@@ -55,11 +55,6 @@ Resources:
           Image: !Sub ${ImageRepoName}:${ImageTag}
           PortMappings:
             - ContainerPort: 8080
-          Command:
-            - "mkdir /tmp/wav && java -jar accurate-analyze.jar"
-          EntryPoint:
-            - "sh"
-            - "-c"
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -108,6 +103,7 @@ Resources:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
+      ServiceName: analyze
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
@@ -126,7 +122,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       HealthCheckIntervalSeconds: 120
-      HealthCheckPath: /api/analyze/audio/async
+      HealthCheckPath: /api/health
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 60
       HealthyThresholdCount: 2
