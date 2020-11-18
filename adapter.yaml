@@ -68,7 +68,7 @@ Resources:
   AuthRunnerSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: Auth Runner secret
+      Description: Accurate Video - Adapter - Auth Runner secret
       GenerateSecretString:
         SecretStringTemplate: '{"username": "runner"}'
         GenerateStringKey: "password"
@@ -92,7 +92,7 @@ Resources:
   RdsInstanceSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: RDS instance secret
+      Description: Accurate Video - Adapter - RDS instance secret
       GenerateSecretString:
         SecretStringTemplate: '{"username": "postgres"}'
         GenerateStringKey: "password"
@@ -154,8 +154,6 @@ Resources:
           Environment:
             - Name: QUARKUS_SECURITY_USERS_FILE_ENABLED
               Value: "false"
-            - Name: CLUSTER_XML
-              Value: /opt/ecs-cluster.xml
             - Name: DB_HOST
               Value: !GetAtt DBInstance.Endpoint.Address
             - Name: HZE_CLUSTER_NAME_REGEXP
@@ -215,6 +213,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - aws-marketplace:RegisterUsage
+                  - aws-marketplace:MeterUsage
                 Resource: "*"
               - Effect: Allow
                 Action:

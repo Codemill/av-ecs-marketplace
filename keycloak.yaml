@@ -68,7 +68,7 @@ Resources:
   RdsInstanceSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: "RDS instance secret"
+      Description: Accurate Video - Keycloak - RDS instance secret"
       GenerateSecretString:
         SecretStringTemplate: '{"username": "keycloak"}'
         GenerateStringKey: "password"
@@ -104,7 +104,7 @@ Resources:
   KeycloakSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: "RDS instance secret"
+      Description: Accurate Video - Keycloak
       GenerateSecretString:
         SecretStringTemplate: '{"username": "kcadmin"}'
         GenerateStringKey: "password"
@@ -117,7 +117,7 @@ Resources:
   BackendSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: "RDS instance secret"
+      Description: "Accurate Video - Keycloak - Backend secret"
       GenerateSecretString:
         SecretStringTemplate: '{"username": "backend"}'
         GenerateStringKey: "password"
@@ -130,7 +130,7 @@ Resources:
   AdminSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: "RDS instance secret"
+      Description: "Accurate Video - Keycloak - Admin secret"
       GenerateSecretString:
         SecretStringTemplate: '{"username": "admin"}'
         GenerateStringKey: "password"
@@ -272,7 +272,7 @@ Resources:
         - Field: path-pattern
           Values: ["/auth/*"]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
-      Priority: 4
+      Priority: 3
 
 Outputs:
   BackendSecretArn:

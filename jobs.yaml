@@ -69,8 +69,6 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-jobs
           Environment:
-            - Name: CLUSTER_XML
-              Value: "/opt/ecs-cluster.xml"
             - Name: AP_ADAPTER_HOST
               Value: !Sub http://${AdapterServiceName}.av.local:8080
             - Name: ELEMENTAL_AWS_ROLE

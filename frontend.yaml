@@ -5,9 +5,6 @@ Parameters:
   ApplicationTag:
     Type: String
     Description: Used to tag all resources
-  ConfigBucketName:
-    Type: String
-    Description: S3 Config bucket name
   ContainerCpu:
     Type: Number
     Description: How much CPU to give the container. 1024 is 1 CPU
@@ -17,9 +14,6 @@ Parameters:
   DesiredCount:
     Type: Number
     Description: How many copies of the service task to run
-  FrontendSettingsUpdatedTopicArn:
-    Type: String
-    Description: Frontend Settings-updated Topic Arn
   FrontendSG:
     Type: String
     Description: Frontend Security Group
@@ -59,15 +53,6 @@ Resources:
           Cpu: !Ref "ContainerCpu"
           Memory: !Ref "ContainerMemory"
           Image: !Sub ${ImageRepoName}:${ImageTag}
-          Command:
-            - !Sub |
-                apk add aws-cli; \
-                aws s3 cp s3://${ConfigBucketName}/frontend/settings.js /usr/share/nginx/html/assets/json/settings.js; \
-                aws s3 cp s3://${ConfigBucketName}/frontend/keycloak.json /usr/share/nginx/html/assets/json/keycloak.json; \
-                nginx -g 'daemon off;';
-          EntryPoint:
-            - "sh"
-            - "-c"
           LogConfiguration:
             LogDriver: "awslogs"
             Options:
@@ -92,15 +77,6 @@ Resources:
       Path: /
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-      Policies:
-        - PolicyName: AmazonECSTaskExecutionRolePolicy
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action:
-                  - "s3:GetObject"
-                Resource:
-                  - !Sub arn:aws:s3:::${ConfigBucketName}/*
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -162,82 +138,4 @@ Resources:
         - Field: path-pattern
           Values: ["*"]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
-      Priority: 3
-
-  UpdateServiceLambdaFunction:
-    Type: "AWS::Lambda::Function"
-    Properties:
-      Code:
-        ZipFile: |
-          const AWS = require('aws-sdk');
-          const ecs = new AWS.ECS();
-          exports.handler = function(event, context, callback) {
-            var params = {
-              service: process.env.SERVICE_NAME,
-              cluster: process.env.CLUSTER_NAME,
-              forceNewDeployment: true
-            };
-            ecs.updateService(params, function(err, data) {
-              if (err) console.log(err, err.stack); // an error occurred
-              else     console.log(data);           // successful response
-            });
-          };
-      Environment:
-        Variables:
-          CLUSTER_NAME: accurate-video
-          SERVICE_NAME: !Ref Service
-      Handler: index.handler
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Runtime: nodejs12.x
-      Timeout: 5
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  ConfigSubscription:
-    Type: AWS::SNS::Subscription
-    Properties:
-      Endpoint: !GetAtt UpdateServiceLambdaFunction.Arn
-      Protocol: lambda
-      TopicArn: !Ref FrontendSettingsUpdatedTopicArn
-
-  LambdaPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref UpdateServiceLambdaFunction
-      Principal: sns.amazonaws.com
-      SourceArn: !Ref FrontendSettingsUpdatedTopicArn
-
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: "/"
-      Policies:
-        - PolicyName: root
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: arn:aws:logs:*:*:*
-              - Effect: Allow
-                Action:
-                  - ecs:UpdateService
-                Resource:
-                  - !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/${Service.Name}
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
+      Priority: 4
