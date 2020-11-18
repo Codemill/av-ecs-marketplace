@@ -13,7 +13,8 @@
 ### Deployment
 First log in to your AWS account, then click the launch button below to get to the launch wizard in CloudFormation:
 
-[<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https%3A%2F%2Fs3.eu-north-1.amazonaws.com%2Fcf-templates-13ptaa61e3457-eu-north-1%2F2020323trb-main.yaml)
+[<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cloudformation.s3.eu-north-1.amazonaws.com/main.yaml)
+
 
 Then change region to where you want Accurate Video to be deployed and follow the CloudFormation wizard.
 
