@@ -41,9 +41,12 @@ Parameters:
   PublicLoadbalancerListenerArn:
     Type: String
     Description: Public Loadbalancer Listener Arn
-  RdsDbAllocatedStorage:
+  RdsAllocatedStorage:
     Type: String
     Description: Size of the database in GB
+  RdsMaxAllocatedStorage:
+    Type: String
+    Description: Maximum size of the database in GB
   RdsDbClass:
     Type: String
     AllowedValues:
@@ -105,7 +108,7 @@ Resources:
   DBInstance:
     Type: AWS::RDS::DBInstance
     Properties:
-      AllocatedStorage: !Ref RdsDbAllocatedStorage
+      AllocatedStorage: !Ref RdsAllocatedStorage
       DBInstanceClass: !Ref RdsDbClass
       DBName: accurate_video
       DBSubnetGroupName: !Ref RdsDbSubnetGroup
@@ -113,6 +116,7 @@ Resources:
       Engine: Postgres
       MasterUsername: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::username}}"
       MasterUserPassword: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::password}}"
+      MaxAllocatedStorage: !Ref RdsMaxAllocatedStorage
       MultiAZ: true
       StorageEncrypted: true
       StorageType: gp2
