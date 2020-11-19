@@ -1,26 +1,36 @@
-# Accurate Video on AWS ECS
+# Accurate Video on AWS Marketplace
 
-## Usage
+## Step-by-step
 
-### Prerequisites
+### Step 1: Subscribe on AWS Marketplace
 
-- Install [AWS CLI](https://aws.amazon.com/cli/)
-- [Configure CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
+TODO: Insert link button to product
 
-- Route53 Hosted Zone in which a DNS record pointing to the load balancer will be created [Create Hosted Zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingHostedZone.html)
-- Certificate stored and validated in CertificateManager which covers the domain name that the load balancer will be given [Create certificate in ACM](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html)
+### Step 2: Setup HostedZone and CertificateManager
 
-### Deployment
+[Create a Hosted Zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingHostedZone.html) with a valid domain name, and [Create a certificate in ACM](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html) for your Hosted Zone in the region that you want to run in.
 
-First log in to your AWS account, then click the launch buttons below to get to the launch wizard in CloudFormation. Change the region to where you want the service to be deployed.
+TODO: Show where to get the Certificate ARN for a later step.
+### Step 3: Create a new VPC (optional)
 
-Optional: Create a new VPC
+If you already have a VPC that you want to re-use, skip to step 4.
+
+Click the button below to create a new VPC:
 
 [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cloudformation.s3.eu-north-1.amazonaws.com/vpc.yaml)
 
-Create a new deployment:
+### Step 4: Launch the Accurate Video stacks
+
+Click the button below to create a new deployment:
 
 [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cloudformation.s3.eu-north-1.amazonaws.com/main.yaml)
+
+### Uninstall
+
+1. Disable deletion protection on the Keycloak and Accurate Video RDS instances
+2. Delete the main stack, which will delete the child stacks automatically
+3. Delete the VPC stack
+4. Unsubscribe on marketplace
 
 ## Architecture
 
