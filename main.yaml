@@ -115,31 +115,31 @@ Mappings:
     Adapter:
       ContainerCpu: 512
       ContainerMemory: 1024
-      DesiredCount: 0
+      DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
       ImageTag: 4.4.3-rc.7
     Analyze:
       ContainerCpu: 512
       ContainerMemory: 1024
-      DesiredCount: 0
+      DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
       ImageTag: 4.4.3-rc.7
     Jobs:
       ContainerCpu: 512
       ContainerMemory: 1024
-      DesiredCount: 0
+      DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
       ImageTag: 4.4.3-rc.7
     Frontend:
       ContainerCpu: 256
       ContainerMemory: 512
-      DesiredCount: 0
+      DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
       ImageTag: 4.4.3-rc.7
     Keycloak:
       ContainerCpu: 512
       ContainerMemory: 1024
-      DesiredCount: 0
+      DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-keycloak
       ImageTag: 4.4.3-rc.7
   Common:
@@ -158,7 +158,7 @@ Resources:
         LogsRetention: !Ref LogsRetention
         PublicSubnets: !Join [",", !Ref PublicSubnets]
         Vpc: !Ref Vpc
-      TemplateURL: !Sub 
+      TemplateURL: !Sub
         - ${TemplatesS3Bucket}/infrastructure.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
@@ -185,7 +185,7 @@ Resources:
         RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.AdapterRdsDbSecurityGroup
         Vpc: !Ref Vpc
         VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
-      TemplateURL: !Sub 
+      TemplateURL: !Sub
         - ${TemplatesS3Bucket}/adapter.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
@@ -205,7 +205,7 @@ Resources:
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
         Vpc: !Ref Vpc
-      TemplateURL: !Sub 
+      TemplateURL: !Sub
         - ${TemplatesS3Bucket}/frontend.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
@@ -225,7 +225,7 @@ Resources:
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
         Vpc: !Ref Vpc
-      TemplateURL: !Sub 
+      TemplateURL: !Sub
         - ${TemplatesS3Bucket}/analyze.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
@@ -247,7 +247,7 @@ Resources:
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
-      TemplateURL: !Sub 
+      TemplateURL: !Sub
         - ${TemplatesS3Bucket}/jobs.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
@@ -271,7 +271,7 @@ Resources:
         RdsDbClass: !Ref KeycloakRdsDbClass
         RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.KeycloakRdsDbSecurityGroup
         Vpc: !Ref Vpc
-      TemplateURL: !Sub 
+      TemplateURL: !Sub
         - ${TemplatesS3Bucket}/keycloak.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
@@ -282,7 +282,7 @@ Resources:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
         Vpc: !Ref Vpc
-      TemplateURL: !Sub 
+      TemplateURL: !Sub
         - ${TemplatesS3Bucket}/get-vpc-cidr-lambda.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
