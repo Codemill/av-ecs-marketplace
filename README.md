@@ -11,13 +11,16 @@
 - Certificate stored and validated in CertificateManager which covers the domain name that the load balancer will be given [Create certificate in ACM](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html)
 
 ### Deployment
-First log in to your AWS account, then click the launch button below to get to the launch wizard in CloudFormation:
+
+First log in to your AWS account, then click the launch buttons below to get to the launch wizard in CloudFormation. Change the region to where you want the service to be deployed.
+
+Optional: Create a new VPC
+
+[<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cloudformation.s3.eu-north-1.amazonaws.com/vpc.yaml)
+
+Create a new deployment:
 
 [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cloudformation.s3.eu-north-1.amazonaws.com/main.yaml)
-
-
-Then change region to where you want Accurate Video to be deployed and follow the CloudFormation wizard.
-
 
 ## Architecture
 
