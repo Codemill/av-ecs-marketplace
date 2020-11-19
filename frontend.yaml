@@ -97,6 +97,7 @@ Resources:
         - ContainerName: av-frontend
           ContainerPort: 80
           TargetGroupArn: !Ref "TargetGroup"
+      ServiceName: frontend
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:

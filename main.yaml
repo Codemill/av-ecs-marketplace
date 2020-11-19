@@ -23,23 +23,6 @@ Parameters:
   CertificateArn:
     Type: String
     Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
-  CreateVpc:
-    Type: String
-    Description: Should a VPC be created for you?
-    Default: "no"
-    AllowedValues:
-      - "yes"
-      - "no"
-  CreateVpcCidr:
-    Type: String
-    Description: What CIDR block should your VPC have? (e.g. 10.0.0.0/16)
-  CreateVpcUseNumberOfAz:
-    Type: String
-    Description: How many avaliability zones should the VPC have? Please check that your region supports the number you choose.
-    Default: "two"
-    AllowedValues:
-      - "two"
-      - "three"
   HostedZoneId:
     Type: AWS::Route53::HostedZone::Id
     Description: Route53 Hosted Zone Id
@@ -77,13 +60,7 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Network (Modify these parameters if you want a VPC to be created for you)
-        Parameters:
-          - CreateVpc
-          - CreateVpcUseNumberOfAz
-          - CreateVpcCidr
-      - Label:
-          default: Network (Modify these parameters if you want to use an existing VPC)
+          default: Network
         Parameters:
           - Vpc
           - PrivateSubnets
@@ -98,9 +75,9 @@ Metadata:
       - Label:
           default: DNS
         Parameters:
-          - CertificateArn
           - HostedZoneId
           - LoadBalancerDomainName
+          - CertificateArn
       - Label:
           default: Other configuration
         Parameters:
@@ -116,12 +93,6 @@ Metadata:
         default: Application Tag
       CertificateArn:
         default: Certificate ARN
-      CreateVpc:
-        default: Create new VPC
-      CreateVpcCidr:
-        default: VPC CIDR
-      CreateVpcUseNumberOfAz:
-        default: Number of Availability Zones 
       HostedZoneId:
         default: HostedZone ID
       KeycloakRdsDbAllocatedStorage:
@@ -175,23 +146,7 @@ Mappings:
     CloudFormation:
       Bucket: https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation
 
-Conditions:
-  CreateVpc: !Equals [!Ref CreateVpc, "yes"]
-
 Resources:
-  VpcStack:
-    Type: AWS::CloudFormation::Stack
-    Condition: CreateVpc
-    Properties:
-      Parameters:
-        ApplicationTag: !Ref ApplicationTag
-        VpcCidr: !Ref CreateVpcCidr
-        NumberOfAvailabilityZones: !Ref CreateVpcUseNumberOfAz
-      TemplateURL: !Sub 
-        - ${TemplatesS3Bucket}/vpc.yaml
-        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
-      TimeoutInMinutes: 30
-
   InfrastructureStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -201,8 +156,8 @@ Resources:
         HostedZoneId: !Ref HostedZoneId
         LoadBalancerDomainName: !Sub "${LoadBalancerDomainName}."
         LogsRetention: !Ref LogsRetention
-        PublicSubnets: !If [CreateVpc, !GetAtt VpcStack.Outputs.PublicSubnets, !Join [",", !Ref PublicSubnets]]
-        Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
+        PublicSubnets: !Join [",", !Ref PublicSubnets]
+        Vpc: !Ref Vpc
       TemplateURL: !Sub 
         - ${TemplatesS3Bucket}/infrastructure.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
@@ -223,12 +178,12 @@ Resources:
         KeycloakHost: !Sub "https://${LoadBalancerDomainName}"
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
-        PrivateSubnets:  !If [CreateVpc, !GetAtt VpcStack.Outputs.PrivateSubnets, !Join [",", !Ref PrivateSubnets]]
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
         RdsDbAllocatedStorage: !Ref AdapterRdsDbAllocatedStorage
         RdsDbClass: !Ref AdapterRdsDbClass
         RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.AdapterRdsDbSecurityGroup
-        Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
+        Vpc: !Ref Vpc
         VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
       TemplateURL: !Sub 
         - ${TemplatesS3Bucket}/adapter.yaml
@@ -247,9 +202,9 @@ Resources:
         ImageRepoName: !FindInMap [Service, Frontend, ImageRepoName]
         ImageTag: !FindInMap [Service, Frontend, ImageTag]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
-        PrivateSubnets:  !If [CreateVpc, !GetAtt VpcStack.Outputs.PrivateSubnets, !Join [",", !Ref PrivateSubnets]]
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
-        Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
+        Vpc: !Ref Vpc
       TemplateURL: !Sub 
         - ${TemplatesS3Bucket}/frontend.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
@@ -267,9 +222,9 @@ Resources:
         ImageRepoName: !FindInMap [Service, Analyze, ImageRepoName]
         ImageTag: !FindInMap [Service, Analyze, ImageTag]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
-        PrivateSubnets:  !If [CreateVpc, !GetAtt VpcStack.Outputs.PrivateSubnets, !Join [",", !Ref PrivateSubnets]]
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
-        Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
+        Vpc: !Ref Vpc
       TemplateURL: !Sub 
         - ${TemplatesS3Bucket}/analyze.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
@@ -290,7 +245,7 @@ Resources:
         JobsSG: !GetAtt InfrastructureStack.Outputs.JobsSecurityGroup
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
-        PrivateSubnets:  !If [CreateVpc, !GetAtt VpcStack.Outputs.PrivateSubnets, !Join [",", !Ref PrivateSubnets]]
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
       TemplateURL: !Sub 
         - ${TemplatesS3Bucket}/jobs.yaml
@@ -310,12 +265,12 @@ Resources:
         ImageTag: !FindInMap [Service, Keycloak, ImageTag]
         KeycloakSG: !GetAtt InfrastructureStack.Outputs.KeycloakSecurityGroup
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
-        PrivateSubnets:  !If [CreateVpc, !GetAtt VpcStack.Outputs.PrivateSubnets, !Join [",", !Ref PrivateSubnets]]
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
         RdsDbAllocatedStorage: !Ref KeycloakRdsDbAllocatedStorage
         RdsDbClass: !Ref KeycloakRdsDbClass
         RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.KeycloakRdsDbSecurityGroup
-        Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
+        Vpc: !Ref Vpc
       TemplateURL: !Sub 
         - ${TemplatesS3Bucket}/keycloak.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
@@ -326,7 +281,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-        Vpc: !If [CreateVpc, !GetAtt VpcStack.Outputs.Vpc, !Ref Vpc]
+        Vpc: !Ref Vpc
       TemplateURL: !Sub 
         - ${TemplatesS3Bucket}/get-vpc-cidr-lambda.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]

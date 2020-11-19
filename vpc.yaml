@@ -10,9 +10,12 @@ Parameters:
     Type: String
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
-    Description: CIDR block for VPC, for example 10.0.0.0/16
+    Description: What CIDR block should your VPC have? (e.g. 10.0.0.0/16)
+    Default: 10.0.0.0/16
   NumberOfAvailabilityZones:
     Type: String
+    Description: How many avaliability zones should the VPC have? Please check that your region supports the number you choose.
+    Default: "two"
     AllowedValues:
       - "two"
       - "three"
@@ -29,6 +32,14 @@ Metadata:
           default: "Other"
         Parameters:
           - ApplicationTag
+
+    ParameterLabels:
+      ApplicationTag:
+        default: Application Tag
+      VpcCidr:
+        default: VPC CIDR
+      NumberOfAvailabilityZones:
+        default: Number of Availability Zones 
 
 Conditions:
   UseThreeAz: !Equals [!Ref NumberOfAvailabilityZones, "three"]
