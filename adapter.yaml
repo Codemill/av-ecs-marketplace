@@ -115,6 +115,7 @@ Resources:
       MasterUserPassword: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::password}}"
       MultiAZ: true
       StorageEncrypted: true
+      StorageType: gp2
       VPCSecurityGroups:
         - !Ref RdsDbSecurityGroup
       Tags:
