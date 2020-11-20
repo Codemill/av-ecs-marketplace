@@ -105,7 +105,7 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
-      ImageTag: 4.4.3-rc.7
+      ImageTag: 4.4.3-rc.8
     Analyze:
       ContainerCpu: 512
       ContainerMemory: 1024
