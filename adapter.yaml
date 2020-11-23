@@ -8,6 +8,9 @@ Parameters:
   ApplicationTag:
     Type: String
     Description: Used to tag all resources
+  ClusterArn:
+    Type: String
+    Description: ECS Cluster ARN
   ContainerCpu:
     Type: Number
     Description: How much CPU to give the container. 1024 is 1 CPU
@@ -161,10 +164,10 @@ Resources:
               Value: "false"
             - Name: DB_HOST
               Value: !GetAtt DBInstance.Endpoint.Address
-            - Name: HZE_CLUSTER_NAME_REGEXP
-              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video
-            - Name: HZE_SERVICE_NAME_REGEXP
-              Value: !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+"
+            - Name: HZE_CLUSTER_NAME
+              Value: !Ref ClusterArn
+            - Name: HZE_SERVICE_NAME
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/adapter
             - Name: KEYCLOAK_HOST
               Value: !Ref KeycloakHost
             - Name: HZE_IPV4_CIDR

@@ -326,6 +326,9 @@ Outputs:
   LogGroup:
     Description: The name of the Log Group
     Value: !Ref LogGroup
+  ClusterArn:
+    Description: ECS Cluster ARN
+    Value: !GetAtt EcsCluster.Arn
   AdapterRdsDbSecurityGroup:
     Description: Security group for the Adapter RDS instance
     Value: !Ref AdapterRdsDbSecurityGroup
