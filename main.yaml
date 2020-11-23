@@ -117,7 +117,7 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
-      ImageTag: 4.4.3-rc.9
+      ImageTag: 4.4.3-rc.10
     Frontend:
       ContainerCpu: 256
       ContainerMemory: 512
