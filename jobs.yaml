@@ -80,7 +80,7 @@ Resources:
             - Name: HZE_CLUSTER_NAME_REGEXP
               Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video
             - Name: HZE_SERVICE_NAME_REGEXP
-              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/(jobs|adapter)
             - Name: HZE_IPV4_CIDR
               Value: !Ref VpcCidrBlock
           Secrets:

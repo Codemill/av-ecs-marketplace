@@ -23,6 +23,9 @@ Parameters:
   ImageTag:
     Type: String
     Description: The ecr repo and tag to use for image deployment
+  LoadbalancerListenerPriority:
+    Type: String
+    Description: Loadbalancer Listener Rule Priority
   LogGroupName:
     Type: String
     Description: CloudWatch Log Group Name
@@ -151,4 +154,4 @@ Resources:
         - Field: path-pattern
           Values: ["/api/analyze/*"]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
-      Priority: 1
+      Priority: !Ref LoadbalancerListenerPriority

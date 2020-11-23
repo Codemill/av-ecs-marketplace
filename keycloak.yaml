@@ -26,6 +26,9 @@ Parameters:
   KeycloakSG:
     Type: String
     Description: "Keycloak Security Group"
+  LoadbalancerListenerPriority:
+    Type: String
+    Description: Loadbalancer Listener Rule Priority
   LogGroupName:
     Type: String
     Description: "CloudWatch Log Group Name"
@@ -278,7 +281,7 @@ Resources:
         - Field: path-pattern
           Values: ["/auth*"]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
-      Priority: 3
+      Priority: !Ref LoadbalancerListenerPriority
 
 Outputs:
   BackendSecretArn:

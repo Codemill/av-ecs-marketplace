@@ -106,12 +106,14 @@ Mappings:
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
       ImageTag: 4.4.3-rc.9
+      LoadbalancerListenerPriority: 2
     Analyze:
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
       ImageTag: 4.4.3-rc.9
+      LoadbalancerListenerPriority: 1
     Jobs:
       ContainerCpu: 512
       ContainerMemory: 1024
@@ -124,6 +126,7 @@ Mappings:
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
       ImageTag: 4.4.3-rc.9
+      LoadbalancerListenerPriority: 4
     Keycloak:
       RdsAllocatedStorage: 20
       RdsMaxAllocatedStorage: 21
@@ -132,6 +135,7 @@ Mappings:
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-keycloak
       ImageTag: 4.4.3-rc.9
+      LoadbalancerListenerPriority: 3
   Common:
     CloudFormation:
       Bucket: https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation
