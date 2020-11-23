@@ -170,6 +170,7 @@ Resources:
         ImageTag: !FindInMap [Service, Adapter, ImageTag]
         KeycloakBackendSecret: !GetAtt KeycloakStack.Outputs.BackendSecretArn
         KeycloakHost: !Sub "https://${LoadBalancerDomainName}"
+        LoadbalancerListenerPriority: !FindInMap [Service, Adapter, LoadbalancerListenerPriority]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
@@ -196,6 +197,7 @@ Resources:
         FrontendSG: !GetAtt InfrastructureStack.Outputs.FrontendSecurityGroup
         ImageRepoName: !FindInMap [Service, Frontend, ImageRepoName]
         ImageTag: !FindInMap [Service, Frontend, ImageTag]
+        LoadbalancerListenerPriority: !FindInMap [Service, Frontend, LoadbalancerListenerPriority]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
@@ -216,6 +218,7 @@ Resources:
         DesiredCount: !FindInMap [Service, Analyze, DesiredCount]
         ImageRepoName: !FindInMap [Service, Analyze, ImageRepoName]
         ImageTag: !FindInMap [Service, Analyze, ImageTag]
+        LoadbalancerListenerPriority: !FindInMap [Service, Analyze, LoadbalancerListenerPriority]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
@@ -259,6 +262,7 @@ Resources:
         ImageRepoName: !FindInMap [Service, Keycloak, ImageRepoName]
         ImageTag: !FindInMap [Service, Keycloak, ImageTag]
         KeycloakSG: !GetAtt InfrastructureStack.Outputs.KeycloakSecurityGroup
+        LoadbalancerListenerPriority: !FindInMap [Service, Keycloak, LoadbalancerListenerPriority]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
