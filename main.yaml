@@ -107,6 +107,7 @@ Mappings:
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
       ImageTag: 4.4.3-rc.9
       LoadbalancerListenerPriority: 2
+      LoadbalancerListenerPath: "/api/*"
     Analyze:
       ContainerCpu: 512
       ContainerMemory: 1024
@@ -114,6 +115,7 @@ Mappings:
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
       ImageTag: 4.4.3-rc.9
       LoadbalancerListenerPriority: 1
+      LoadbalancerListenerPath: "/api/analyze/*"
     Jobs:
       ContainerCpu: 512
       ContainerMemory: 1024
@@ -127,6 +129,7 @@ Mappings:
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
       ImageTag: 4.4.3-rc.9
       LoadbalancerListenerPriority: 4
+      LoadbalancerListenerPath: "*"
     Keycloak:
       RdsAllocatedStorage: 20
       RdsMaxAllocatedStorage: 21
@@ -136,6 +139,7 @@ Mappings:
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-keycloak
       ImageTag: 4.4.3-rc.9
       LoadbalancerListenerPriority: 3
+      LoadbalancerListenerPath: "/auth*"
   Common:
     CloudFormation:
       Bucket: https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation
@@ -171,6 +175,7 @@ Resources:
         KeycloakBackendSecret: !GetAtt KeycloakStack.Outputs.BackendSecretArn
         KeycloakHost: !Sub "https://${LoadBalancerDomainName}"
         LoadbalancerListenerPriority: !FindInMap [Service, Adapter, LoadbalancerListenerPriority]
+        LoadbalancerListenerPath: !FindInMap [Service, Adapter, LoadbalancerListenerPath]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
@@ -198,6 +203,7 @@ Resources:
         ImageRepoName: !FindInMap [Service, Frontend, ImageRepoName]
         ImageTag: !FindInMap [Service, Frontend, ImageTag]
         LoadbalancerListenerPriority: !FindInMap [Service, Frontend, LoadbalancerListenerPriority]
+        LoadbalancerListenerPath: !FindInMap [Service, Frontend, LoadbalancerListenerPath]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
@@ -219,6 +225,7 @@ Resources:
         ImageRepoName: !FindInMap [Service, Analyze, ImageRepoName]
         ImageTag: !FindInMap [Service, Analyze, ImageTag]
         LoadbalancerListenerPriority: !FindInMap [Service, Analyze, LoadbalancerListenerPriority]
+        LoadbalancerListenerPath: !FindInMap [Service, Analyze, LoadbalancerListenerPath]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
@@ -263,6 +270,7 @@ Resources:
         ImageTag: !FindInMap [Service, Keycloak, ImageTag]
         KeycloakSG: !GetAtt InfrastructureStack.Outputs.KeycloakSecurityGroup
         LoadbalancerListenerPriority: !FindInMap [Service, Keycloak, LoadbalancerListenerPriority]
+        LoadbalancerListenerPath: !FindInMap [Service, Keycloak, LoadbalancerListenerPath]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener

@@ -26,6 +26,9 @@ Parameters:
   KeycloakSG:
     Type: String
     Description: "Keycloak Security Group"
+  LoadbalancerListenerPath:
+    Type: String
+    Description: Loadbalancer Listener Rule Path
   LoadbalancerListenerPriority:
     Type: String
     Description: Loadbalancer Listener Rule Priority
@@ -279,7 +282,7 @@ Resources:
           Type: "forward"
       Conditions:
         - Field: path-pattern
-          Values: ["/auth*"]
+          Values: [!Ref LoadbalancerListenerPath]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
       Priority: !Ref LoadbalancerListenerPriority
 

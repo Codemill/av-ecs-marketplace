@@ -29,6 +29,9 @@ Parameters:
   KeycloakHost:
     Type: String
     Description: Keycloak host name
+  LoadbalancerListenerPath:
+    Type: String
+    Description: Loadbalancer Listener Rule Path
   LoadbalancerListenerPriority:
     Type: String
     Description: Loadbalancer Listener Rule Priority
@@ -237,7 +240,7 @@ Resources:
   DiscoveryService:
     Type: AWS::ServiceDiscovery::Service
     Properties:
-      Description: Discovery Service for the Demo Application
+      Description: Discovery Service for the Demo Application #TODO
       DnsConfig:
         RoutingPolicy: MULTIVALUE
         DnsRecords:
@@ -312,7 +315,7 @@ Resources:
           Type: forward
       Conditions:
         - Field: path-pattern
-          Values: [/api/*]
+          Values: [!Ref LoadbalancerListenerPath]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
       Priority: !Ref LoadbalancerListenerPriority
 
