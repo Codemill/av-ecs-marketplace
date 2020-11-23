@@ -256,7 +256,7 @@ Resources:
       HealthCheckIntervalSeconds: 30
       HealthCheckPath: /auth/realms/master
       HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 60
+      HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 2
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds

@@ -311,7 +311,7 @@ Resources:
       HealthCheckIntervalSeconds: 30
       HealthCheckPath: /api/health
       HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 60
+      HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 2
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
