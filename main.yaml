@@ -159,7 +159,6 @@ Resources:
       Parameters:
         AdapterSG: !GetAtt InfrastructureStack.Outputs.AdapterSecurityGroup
         ApplicationTag: !Ref ApplicationTag
-        ClusterArn: !GetAtt InfrastructureStack.Outputs.ClusterArn
         ContainerCpu: !FindInMap [Service, Adapter, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Adapter, ContainerMemory]
         DesiredCount: !FindInMap [Service, Adapter, DesiredCount]
@@ -229,7 +228,6 @@ Resources:
         AdapterServiceName: !GetAtt AdapterStack.Outputs.ServiceName
         ApplicationTag: !Ref ApplicationTag
         AuthRunnerSecretArn: !GetAtt AdapterStack.Outputs.AuthRunnerSecretArn
-        ClusterArn: !GetAtt InfrastructureStack.Outputs.ClusterArn
         ContainerCpu: !FindInMap [Service, Jobs, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Jobs, ContainerMemory]
         DesiredCount: !FindInMap [Service, Jobs, DesiredCount]

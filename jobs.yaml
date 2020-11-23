@@ -11,9 +11,6 @@ Parameters:
   AuthRunnerSecretArn:
     Type: String
     Description: Auth Runner Secrets Manager Arn
-  ClusterArn:
-    Type: String
-    Description: ECS Cluster ARN
   ContainerCpu:
     Type: Number
     Description: How much CPU to give the container. 1024 is 1 CPU
@@ -80,10 +77,10 @@ Resources:
               Value: !Sub http://${AdapterServiceName}.av.local:8080
             - Name: ELEMENTAL_AWS_ROLE
               Value: !GetAtt ElementalRole.Arn
-            - Name: HZE_CLUSTER_NAME
-              Value: !Ref ClusterArn
-            - Name: HZE_SERVICE_NAME
-              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/jobs
+            - Name: HZE_CLUSTER_NAME_REGEXP
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video
+            - Name: HZE_SERVICE_NAME_REGEXP
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/accurate-video/\\S+-(jobs|adapter)-\\S+
             - Name: HZE_IPV4_CIDR
               Value: !Ref VpcCidrBlock
           Secrets:
