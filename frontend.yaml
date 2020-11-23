@@ -23,6 +23,9 @@ Parameters:
   ImageTag:
     Type: String
     Description: The ecr repo and tag to use for image deployment
+  LoadbalancerListenerPath:
+    Type: String
+    Description: Loadbalancer Listener Rule Path
   LoadbalancerListenerPriority:
     Type: String
     Description: Loadbalancer Listener Rule Priority
@@ -140,6 +143,6 @@ Resources:
           Type: "forward"
       Conditions:
         - Field: path-pattern
-          Values: ["*"]
+          Values: [!Ref LoadbalancerListenerPath]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
       Priority: !Ref LoadbalancerListenerPriority

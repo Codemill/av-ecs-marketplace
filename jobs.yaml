@@ -166,7 +166,7 @@ Resources:
   DiscoveryService:
     Type: AWS::ServiceDiscovery::Service
     Properties:
-      Description: Discovery Service for the Demo Application
+      Description: Discovery Service for the Demo Application #TODO
       DnsConfig:
         RoutingPolicy: MULTIVALUE
         DnsRecords:
