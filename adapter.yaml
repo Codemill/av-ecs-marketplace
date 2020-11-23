@@ -281,33 +281,34 @@ Resources:
     DependsOn: LoadBalancerRule
     Properties:
       Cluster: accurate-video
-      LaunchType: FARGATE
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
-      ServiceName: adapter
+      HealthCheckGracePeriodSeconds: 60
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: av-adapter
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref AdapterSG
           Subnets: !Split [ ',', !Ref PrivateSubnets ]
-      TaskDefinition: !Ref TaskDefinition
-      LoadBalancers:
-        - ContainerName: av-adapter
-          ContainerPort: 8080
-          TargetGroupArn: !Ref TargetGroup
+      ServiceName: adapter
       ServiceRegistries:
         - RegistryArn: !GetAtt DiscoveryService.Arn
           Port: 8080
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+      TaskDefinition: !Ref TaskDefinition
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 120
+      HealthCheckIntervalSeconds: 30
       HealthCheckPath: /api/health
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 60

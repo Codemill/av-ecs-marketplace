@@ -94,20 +94,19 @@ Resources:
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
-      DeploymentController:
-        Type: ECS
       DesiredCount: !Ref "DesiredCount"
+      HealthCheckGracePeriodSeconds: 60
       LaunchType: FARGATE
       LoadBalancers:
         - ContainerName: av-frontend
           ContainerPort: 80
           TargetGroupArn: !Ref "TargetGroup"
-      ServiceName: frontend
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref FrontendSG
           Subnets: !Split [ ',', !Ref PrivateSubnets ]
+      ServiceName: frontend
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -116,7 +115,7 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 120
+      HealthCheckIntervalSeconds: 30
       HealthCheckPath: /
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 60

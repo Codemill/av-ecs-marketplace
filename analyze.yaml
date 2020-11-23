@@ -118,30 +118,31 @@ Resources:
     DependsOn: LoadBalancerRule
     Properties:
       Cluster: accurate-video
-      LaunchType: FARGATE
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
-      ServiceName: analyze
+      HealthCheckGracePeriodSeconds: 60
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: av-analyze
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref AnalyzeSG
           Subnets: !Split [ ',', !Ref PrivateSubnets ]
-      TaskDefinition: !Ref TaskDefinition
-      LoadBalancers:
-        - ContainerName: av-analyze
-          ContainerPort: 8080
-          TargetGroupArn: !Ref TargetGroup
+      ServiceName: analyze
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+      TaskDefinition: !Ref TaskDefinition
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 120
+      HealthCheckIntervalSeconds: 30
       HealthCheckPath: /api/health
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 60

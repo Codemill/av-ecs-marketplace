@@ -205,24 +205,25 @@ Resources:
     Type: AWS::ECS::Service
     Properties:
       Cluster: accurate-video
-      LaunchType: FARGATE
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
-      ServiceName: jobs
-      ServiceRegistries:
-        - RegistryArn: !GetAtt DiscoveryService.Arn
-          Port: 5699
+      HealthCheckGracePeriodSeconds: 60
+      LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref JobsSG
           Subnets: !Split [ ',', !Ref PrivateSubnets ]
-      TaskDefinition: !Ref TaskDefinition
+      ServiceName: jobs
+      ServiceRegistries:
+        - RegistryArn: !GetAtt DiscoveryService.Arn
+          Port: 5699
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+      TaskDefinition: !Ref TaskDefinition
 
   MediaConvertPresetStandardH264:
     Type: AWS::MediaConvert::Preset

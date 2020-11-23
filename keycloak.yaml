@@ -229,30 +229,31 @@ Resources:
     DependsOn: LoadBalancerRule
     Properties:
       Cluster: accurate-video
-      LaunchType: FARGATE
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
-      ServiceName: keycloak
+      HealthCheckGracePeriodSeconds: 60
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: av-keycloak
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref KeycloakSG
           Subnets: !Split [ ',', !Ref PrivateSubnets ]
-      TaskDefinition: !Ref TaskDefinition
-      LoadBalancers:
-        - ContainerName: av-keycloak
-          ContainerPort: 8080
-          TargetGroupArn: !Ref TargetGroup
+      ServiceName: keycloak
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+      TaskDefinition: !Ref TaskDefinition
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 120
+      HealthCheckIntervalSeconds: 30
       HealthCheckPath: /auth/realms/master
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 60
