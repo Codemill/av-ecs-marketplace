@@ -161,7 +161,6 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
-      TaskRoleArn: !GetAtt ECSTaskExecutionRole.Arn
       ContainerDefinitions:
         - Name: av-keycloak
           Cpu: !Ref ContainerCpu
@@ -208,7 +207,6 @@ Resources:
             Action: ["sts:AssumeRole"]
       Path: /
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AWSMarketplaceMeteringRegisterUsage
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
       Policies:
         - PolicyName: AmazonECSTaskExecutionRolePolicy
