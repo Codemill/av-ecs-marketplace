@@ -80,7 +80,7 @@ Resources:
             - Name: HZE_CLUSTER_NAME_REGEXP
               Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/accurate-video
             - Name: HZE_SERVICE_NAME_REGEXP
-              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/(jobs|adapter)
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/\\S+-(jobs|adapter)
             - Name: HZE_IPV4_CIDR
               Value: !Ref VpcCidrBlock
           Secrets:
@@ -130,7 +130,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - sts:PassRole
-                Resource: 
+                Resource:
                   - !GetAtt ElementalRole.Arn
       Tags:
         - Key: application
@@ -207,11 +207,11 @@ Resources:
 
   MediaConvertPresetStandardH264:
     Type: AWS::MediaConvert::Preset
-    Properties: 
+    Properties:
       Category: String #TODO
       Description: String #TODO
       Name: accuratevideo_standard_h264_follow
-      SettingsJson: 
+      SettingsJson:
         VideoDescription:
           Width: 1920
           ScalingBehavior: DEFAULT
@@ -291,11 +291,11 @@ Resources:
 
   MediaConvertPresetWav:
     Type: AWS::MediaConvert::Preset
-    Properties: 
+    Properties:
       Category: String #TODO
       Description: String #TODO
       Name: accuratevideo_wav
-      SettingsJson: 
+      SettingsJson:
         AudioDescriptions:
           - AudioTypeControl: FOLLOW_INPUT
             AudioSourceName: Audio Selector 1
