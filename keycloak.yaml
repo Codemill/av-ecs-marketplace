@@ -233,7 +233,7 @@ Resources:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
-      HealthCheckGracePeriodSeconds: 60
+      HealthCheckGracePeriodSeconds: 120
       LaunchType: FARGATE
       LoadBalancers:
         - ContainerName: av-keycloak
@@ -253,10 +253,10 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 30
+      HealthCheckIntervalSeconds: 60
       HealthCheckPath: /auth/realms/master
       HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 5
+      HealthCheckTimeoutSeconds: 50
       HealthyThresholdCount: 2
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
