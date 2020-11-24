@@ -33,8 +33,8 @@ Resources:
   PrivateDnsNamespace:
     Type: AWS::ServiceDiscovery::PrivateDnsNamespace
     Properties:
-      Description: "" #TODO
-      Name: av.local
+      Description: Discovery Service for Hazelcast
+      Name: accurate-video.internal
       Vpc: !Ref Vpc
       Tags:
         - Key: application

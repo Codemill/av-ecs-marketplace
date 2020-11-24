@@ -260,7 +260,7 @@ Resources:
   DiscoveryService:
     Type: AWS::ServiceDiscovery::Service
     Properties:
-      Description: Discovery Service for the Demo Application #TODO
+      Description: Discovery Service for Hazelcast
       DnsConfig:
         RoutingPolicy: MULTIVALUE
         DnsRecords:
@@ -270,7 +270,7 @@ Resources:
             Type: SRV
       HealthCheckCustomConfig:
         FailureThreshold: 1
-      Name: av-adapter
+      Name: adapter
       NamespaceId: !Ref PrivateDNSNamespace
       Tags:
         - Key: application
