@@ -103,7 +103,7 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
-      ImageTag: 4.4.4-rc.2
+      ImageTag: 4.4.4-rc.4
       LoadbalancerListenerPriority: 2
       LoadbalancerListenerPath: "/api/*"
       RdsAllocatedStorage: 20
@@ -121,7 +121,7 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
-      ImageTag: 4.4.4-rc.2
+      ImageTag: 4.4.4-rc.4
     Frontend:
       ContainerCpu: 256
       ContainerMemory: 512

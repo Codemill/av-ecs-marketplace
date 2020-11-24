@@ -93,7 +93,7 @@ Resources:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: AccurateVideo-Adapter-DB-Subnet-group
-      SubnetIds: !Split [ ',', !Ref PrivateSubnets ]
+      SubnetIds: !Split [",", !Ref PrivateSubnets]
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -170,7 +170,7 @@ Resources:
             - Name: HZE_CLUSTER_NAME_REGEXP
               Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster\/accurate-video
             - Name: HZE_SERVICE_NAME_REGEXP
-              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/accurate-video\/(jobs|adapter)
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/accurate-video\/[a-zA-z0-9].*-(JobsService|AdapterService)-.*[a-zA-z0-9]
             - Name: KEYCLOAK_HOST
               Value: !Ref KeycloakHost
             - Name: HZE_IPV4_CIDR
@@ -189,7 +189,7 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
-  
+
   ECSTaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -276,7 +276,7 @@ Resources:
         - Key: application
           Value: !Ref ApplicationTag
 
-  Service:
+  AdapterService: #NOTE: Do not change resource name
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
     Properties:
@@ -295,8 +295,8 @@ Resources:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref AdapterSG
-          Subnets: !Split [ ',', !Ref PrivateSubnets ]
-      ServiceName: adapter
+          Subnets: !Split [",", !Ref PrivateSubnets]
+      PlatformVersion: "1.4.0"
       ServiceRegistries:
         - RegistryArn: !GetAtt DiscoveryService.Arn
           Port: 8080

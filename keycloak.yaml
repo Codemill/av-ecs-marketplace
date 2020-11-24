@@ -69,7 +69,7 @@ Resources:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: "AccurateVideo-Keycloak-DB-Subnet-group"
-      SubnetIds: !Split [ ',', !Ref PrivateSubnets ]
+      SubnetIds: !Split [",", !Ref PrivateSubnets]
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -233,7 +233,7 @@ Resources:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
-      HealthCheckGracePeriodSeconds: 120
+      HealthCheckGracePeriodSeconds: 150
       LaunchType: FARGATE
       LoadBalancers:
         - ContainerName: av-keycloak
@@ -243,8 +243,8 @@ Resources:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref KeycloakSG
-          Subnets: !Split [ ',', !Ref PrivateSubnets ]
-      ServiceName: keycloak
+          Subnets: !Split [",", !Ref PrivateSubnets]
+      PlatformVersion: "1.4.0"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag

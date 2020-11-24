@@ -67,7 +67,6 @@ Resources:
               awslogs-group: !Ref LogGroupName
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-analyze
-          WorkingDirectory: "/opt/"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -133,7 +132,7 @@ Resources:
           SecurityGroups:
             - !Ref AnalyzeSG
           Subnets: !Split [ ',', !Ref PrivateSubnets ]
-      ServiceName: analyze
+      PlatformVersion: "1.4.0"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag

@@ -105,8 +105,8 @@ Resources:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref FrontendSG
-          Subnets: !Split [ ',', !Ref PrivateSubnets ]
-      ServiceName: frontend
+          Subnets: !Split [",", !Ref PrivateSubnets]
+      PlatformVersion: "1.4.0"
       Tags:
         - Key: application
           Value: !Ref ApplicationTag

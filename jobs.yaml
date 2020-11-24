@@ -80,7 +80,7 @@ Resources:
             - Name: HZE_CLUSTER_NAME_REGEXP
               Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster\/accurate-video
             - Name: HZE_SERVICE_NAME_REGEXP
-              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/accurate-video\/(jobs|adapter)
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/accurate-video\/[a-zA-z0-9].*-(JobsService|AdapterService)-.*[a-zA-z0-9]
             - Name: HZE_IPV4_CIDR
               Value: !Ref VpcCidrBlock
           Secrets:
@@ -148,6 +148,11 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action:
+                  - rekognition:StartSegmentDetection
+                  - rekognition:GetSegmentDetection
+                Resource: "*"
+              - Effect: Allow
+                Action:
                   - sts:PassRole
                 Resource:
                   - !GetAtt ElementalRole.Arn
@@ -201,7 +206,7 @@ Resources:
         - Key: application
           Value: !Ref ApplicationTag
 
-  Service:
+  JobsService: #NOTE: Do not change resource name
     Type: AWS::ECS::Service
     Properties:
       Cluster: accurate-video
@@ -214,8 +219,8 @@ Resources:
         AwsvpcConfiguration:
           SecurityGroups:
             - !Ref JobsSG
-          Subnets: !Split [ ',', !Ref PrivateSubnets ]
-      ServiceName: jobs
+          Subnets: !Split [",", !Ref PrivateSubnets]
+      PlatformVersion: "1.4.0"
       ServiceRegistries:
         - RegistryArn: !GetAtt DiscoveryService.Arn
           Port: 5699
