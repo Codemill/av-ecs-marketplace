@@ -143,6 +143,8 @@ Mappings:
   Common:
     CloudFormation:
       Bucket: https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation
+    DNS:
+      PrivateHostedZoneName: accurate-video.internal
 
 Resources:
   InfrastructureStack:
@@ -154,6 +156,7 @@ Resources:
         HostedZoneId: !Ref HostedZoneId
         LoadBalancerDomainName: !Sub "${LoadBalancerDomainName}."
         LogsRetention: !Ref LogsRetention
+        PrivateHostedZoneName: !FindInMap [Common, DNS, PrivateHostedZoneName]
         PublicSubnets: !Join [",", !Ref PublicSubnets]
         Vpc: !Ref Vpc
       TemplateURL: !Sub
@@ -254,6 +257,7 @@ Resources:
         JobsSG: !GetAtt InfrastructureStack.Outputs.JobsSecurityGroup
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
+        PrivateHostedZoneName: !FindInMap [Common, DNS, PrivateHostedZoneName]
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
       TemplateURL: !Sub

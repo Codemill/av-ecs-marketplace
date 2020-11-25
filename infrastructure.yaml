@@ -22,6 +22,9 @@ Parameters:
   LogsRetention:
     Type: Number
     Description: Number of days that application logs are saved
+  PrivateHostedZoneName:
+    Type: String
+    Description: Private HostedZone Name
   PublicSubnets:
     Type: String
     Description: Public Subnets
@@ -34,7 +37,7 @@ Resources:
     Type: AWS::ServiceDiscovery::PrivateDnsNamespace
     Properties:
       Description: Discovery Service for Hazelcast
-      Name: accurate-video.internal
+      Name: !Ref PrivateHostedZoneName
       Vpc: !Ref Vpc
       Tags:
         - Key: application
@@ -332,6 +335,9 @@ Outputs:
   AdapterSecurityGroup:
     Description: Security group for the Adapter service
     Value: !Ref AdapterSecurityGroup
+  ClusterName:
+    Description: ECS Cluster Name
+    Value: !Ref EcsCluster
   FrontendSecurityGroup:
     Description: Security group for the Frontend service
     Value: !Ref FrontendSecurityGroup

@@ -38,6 +38,9 @@ Parameters:
   PrivateDNSNamespace:
     Type: String
     Description: Private DNS Namespace
+  PrivateHostedZoneName:
+    Type: String
+    Description: Private HostedZone Name
   PrivateSubnets:
     Type: String
     Description: Private Subnets
@@ -77,7 +80,7 @@ Resources:
             - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID
               Value: !Ref MediaConvertPresetStandardH264
             - Name: AP_ADAPTER_HOST
-              Value: !Sub http://${AdapterServiceName}.accurate-video.internal:8080 #TODO
+              Value: !Sub http://${AdapterServiceName}.${PrivateHostedZoneName}:8080
             - Name: ELEMENTAL_AWS_ROLE
               Value: !GetAtt ElementalRole.Arn
             - Name: HZE_CLUSTER_NAME_REGEXP
