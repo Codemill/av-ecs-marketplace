@@ -103,7 +103,7 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
-      ImageTag: 4.4.4-rc.4
+      ImageTag: 4.4.5-rc.1
       LoadbalancerListenerPriority: 2
       LoadbalancerListenerPath: "/api/*"
       RdsAllocatedStorage: 20
@@ -113,7 +113,7 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
-      ImageTag: 4.4.3-rc.9
+      ImageTag: 4.4.5-rc.2
       LoadbalancerListenerPath: "/api/analyze/*"
       LoadbalancerListenerPriority: 1
     Jobs:
@@ -121,7 +121,7 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
-      ImageTag: 4.4.4-rc.4
+      ImageTag: 4.4.5-rc.1
     Frontend:
       ContainerCpu: 256
       ContainerMemory: 512
@@ -167,6 +167,7 @@ Resources:
       Parameters:
         AdapterSG: !GetAtt InfrastructureStack.Outputs.AdapterSecurityGroup
         ApplicationTag: !Ref ApplicationTag
+        ClusterName: !GetAtt InfrastructureStack.Outputs.ClusterName
         ContainerCpu: !FindInMap [Service, Adapter, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Adapter, ContainerMemory]
         DesiredCount: !FindInMap [Service, Adapter, DesiredCount]
@@ -196,6 +197,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
+        ClusterName: !GetAtt InfrastructureStack.Outputs.ClusterName
         ContainerCpu: !FindInMap [Service, Frontend, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Frontend, ContainerMemory]
         DesiredCount: !FindInMap [Service, Frontend, DesiredCount]
@@ -219,6 +221,7 @@ Resources:
       Parameters:
         AnalyzeSG: !GetAtt InfrastructureStack.Outputs.AnalyzeSecurityGroup
         ApplicationTag: !Ref ApplicationTag
+        ClusterName: !GetAtt InfrastructureStack.Outputs.ClusterName
         ContainerCpu: !FindInMap [Service, Analyze, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Analyze, ContainerMemory]
         DesiredCount: !FindInMap [Service, Analyze, DesiredCount]
@@ -242,6 +245,7 @@ Resources:
         AdapterServiceName: !GetAtt AdapterStack.Outputs.ServiceName
         ApplicationTag: !Ref ApplicationTag
         AuthRunnerSecretArn: !GetAtt AdapterStack.Outputs.AuthRunnerSecretArn
+        ClusterName: !GetAtt InfrastructureStack.Outputs.ClusterName
         ContainerCpu: !FindInMap [Service, Jobs, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Jobs, ContainerMemory]
         DesiredCount: !FindInMap [Service, Jobs, DesiredCount]
@@ -262,6 +266,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
+        ClusterName: !GetAtt InfrastructureStack.Outputs.ClusterName
         ContainerCpu: !FindInMap [Service, Keycloak, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Keycloak, ContainerMemory]
         DesiredCount: !FindInMap [Service, Keycloak, DesiredCount]

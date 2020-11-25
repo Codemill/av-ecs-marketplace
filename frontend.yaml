@@ -5,6 +5,9 @@ Parameters:
   ApplicationTag:
     Type: String
     Description: Used to tag all resources
+  ClusterName:
+    Type: String
+    Description: ECS Cluster Name
   ContainerCpu:
     Type: Number
     Description: How much CPU to give the container. 1024 is 1 CPU
@@ -90,7 +93,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
     Properties:
-      Cluster: accurate-video
+      Cluster: !Ref ClusterName
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75

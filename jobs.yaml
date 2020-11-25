@@ -11,6 +11,9 @@ Parameters:
   AuthRunnerSecretArn:
     Type: String
     Description: Auth Runner Secrets Manager Arn
+  ClusterName:
+    Type: String
+    Description: ECS Cluster Name
   ContainerCpu:
     Type: Number
     Description: How much CPU to give the container. 1024 is 1 CPU
@@ -74,13 +77,13 @@ Resources:
             - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID
               Value: !Ref MediaConvertPresetStandardH264
             - Name: AP_ADAPTER_HOST
-              Value: !Sub http://${AdapterServiceName}.accurate-video.internal:8080
+              Value: !Sub http://${AdapterServiceName}.accurate-video.internal:8080 #TODO
             - Name: ELEMENTAL_AWS_ROLE
               Value: !GetAtt ElementalRole.Arn
             - Name: HZE_CLUSTER_NAME_REGEXP
-              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster\/accurate-video
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster\/${ClusterName}
             - Name: HZE_SERVICE_NAME_REGEXP
-              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/accurate-video\/[a-zA-z0-9].*-(JobsService|AdapterService)-.*[a-zA-z0-9]
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/${ClusterName}\/[a-zA-z0-9].*-(JobsService|AdapterService)-.*[a-zA-z0-9]
             - Name: HZE_IPV4_CIDR
               Value: !Ref VpcCidrBlock
           Secrets:
@@ -209,7 +212,7 @@ Resources:
   JobsService: #NOTE: Do not change resource name
     Type: AWS::ECS::Service
     Properties:
-      Cluster: accurate-video
+      Cluster: !Ref ClusterName
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75

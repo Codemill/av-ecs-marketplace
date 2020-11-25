@@ -8,6 +8,9 @@ Parameters:
   ApplicationTag:
     Type: String
     Description: Used to tag all resources
+  ClusterName:
+    Type: String
+    Description: ECS Cluster Name
   ContainerCpu:
     Type: Number
     Description: How much CPU to give the container. 1024 is 1 CPU
@@ -168,9 +171,9 @@ Resources:
             - Name: DB_HOST
               Value: !GetAtt DBInstance.Endpoint.Address
             - Name: HZE_CLUSTER_NAME_REGEXP
-              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster\/accurate-video
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster\/${ClusterName}
             - Name: HZE_SERVICE_NAME_REGEXP
-              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/accurate-video\/[a-zA-z0-9].*-(JobsService|AdapterService)-.*[a-zA-z0-9]
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/${ClusterName}\/[a-zA-z0-9].*-(JobsService|AdapterService)-.*[a-zA-z0-9]
             - Name: KEYCLOAK_HOST
               Value: !Ref KeycloakHost
             - Name: HZE_IPV4_CIDR
@@ -280,7 +283,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
     Properties:
-      Cluster: accurate-video
+      Cluster: !Ref ClusterName
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
