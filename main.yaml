@@ -99,6 +99,7 @@ Metadata:
 Mappings:
   Service:
     Adapter:
+      CapacityProvider: FARGATE_SPOT
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
@@ -106,9 +107,11 @@ Mappings:
       ImageTag: 4.4.5-rc.1
       LoadbalancerListenerPriority: 2
       LoadbalancerListenerPath: "/api/*"
+      MultiAZ: false
       RdsAllocatedStorage: 20
       RdsMaxAllocatedStorage: 100
     Analyze:
+      CapacityProvider: FARGATE_SPOT
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
@@ -117,12 +120,14 @@ Mappings:
       LoadbalancerListenerPath: "/api/analyze/*"
       LoadbalancerListenerPriority: 1
     Jobs:
+      CapacityProvider: FARGATE_SPOT
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
       ImageTag: 4.4.5-rc.1
     Frontend:
+      CapacityProvider: FARGATE_SPOT
       ContainerCpu: 256
       ContainerMemory: 512
       DesiredCount: 1
@@ -130,7 +135,8 @@ Mappings:
       ImageTag: 4.4.3-rc.9
       LoadbalancerListenerPath: "*"
       LoadbalancerListenerPriority: 4
-    Keycloak:
+    Keycloak: 
+      CapacityProvider: FARGATE_SPOT
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
@@ -138,6 +144,7 @@ Mappings:
       ImageTag: 4.4.3-rc.9
       LoadbalancerListenerPath: "/auth*"
       LoadbalancerListenerPriority: 3
+      MultiAZ: false
       RdsAllocatedStorage: 20
       RdsMaxAllocatedStorage: 21
   Common:
@@ -170,6 +177,7 @@ Resources:
       Parameters:
         AdapterSG: !GetAtt InfrastructureStack.Outputs.AdapterSecurityGroup
         ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !FindInMap [Service, Adapter, CapacityProvider]
         ClusterName: !GetAtt InfrastructureStack.Outputs.ClusterName
         ContainerCpu: !FindInMap [Service, Adapter, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Adapter, ContainerMemory]
@@ -181,6 +189,7 @@ Resources:
         LoadbalancerListenerPriority: !FindInMap [Service, Adapter, LoadbalancerListenerPriority]
         LoadbalancerListenerPath: !FindInMap [Service, Adapter, LoadbalancerListenerPath]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        MultiAZ: !FindInMap [Service, Adapter, MultiAZ]
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
@@ -200,6 +209,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !FindInMap [Service, Frontend, CapacityProvider]
         ClusterName: !GetAtt InfrastructureStack.Outputs.ClusterName
         ContainerCpu: !FindInMap [Service, Frontend, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Frontend, ContainerMemory]
@@ -224,6 +234,7 @@ Resources:
       Parameters:
         AnalyzeSG: !GetAtt InfrastructureStack.Outputs.AnalyzeSecurityGroup
         ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !FindInMap [Service, Analyze, CapacityProvider]
         ClusterName: !GetAtt InfrastructureStack.Outputs.ClusterName
         ContainerCpu: !FindInMap [Service, Analyze, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Analyze, ContainerMemory]
@@ -247,6 +258,7 @@ Resources:
       Parameters:
         AdapterServiceName: !GetAtt AdapterStack.Outputs.ServiceName
         ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !FindInMap [Service, Jobs, CapacityProvider]
         AuthRunnerSecretArn: !GetAtt AdapterStack.Outputs.AuthRunnerSecretArn
         ClusterName: !GetAtt InfrastructureStack.Outputs.ClusterName
         ContainerCpu: !FindInMap [Service, Jobs, ContainerCpu]
@@ -270,6 +282,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !FindInMap [Service, Keycloak, CapacityProvider]
         ClusterName: !GetAtt InfrastructureStack.Outputs.ClusterName
         ContainerCpu: !FindInMap [Service, Keycloak, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Keycloak, ContainerMemory]
@@ -281,6 +294,7 @@ Resources:
         LoadbalancerListenerPriority: !FindInMap [Service, Keycloak, LoadbalancerListenerPriority]
         LoadbalancerListenerPath: !FindInMap [Service, Keycloak, LoadbalancerListenerPath]
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        MultiAZ: !FindInMap [Service, Adapter, MultiAZ]
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt InfrastructureStack.Outputs.PublicListener
         RdsAllocatedStorage: !FindInMap [Service, Keycloak, RdsAllocatedStorage]

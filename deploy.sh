@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 read -rp "AWS Profile: " PROFILE
+read -rp "AWS Region: " REGION
+read -rp "AWS Stack Name: " STACK_NAME
 
 aws s3 sync \
   --profile "${PROFILE}" \
@@ -11,7 +13,7 @@ aws s3 sync \
   . s3://av-marketplace-cloudformation
 
 aws cloudformation update-stack \
-  --stack-name av-apps-marketplace \
+  --stack-name ${STACK_NAME} \
   --template-url https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation/main.yaml \
   --parameters \
     ParameterKey=AdapterRdsDbClass,UsePreviousValue=true \
@@ -26,4 +28,4 @@ aws cloudformation update-stack \
     ParameterKey=Vpc,UsePreviousValue=true \
   --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
   --profile "${PROFILE}" \
-  --region eu-west-1
+  --region "${REGION}"

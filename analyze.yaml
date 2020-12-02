@@ -8,6 +8,12 @@ Parameters:
   ApplicationTag:
     Type: String
     Description: Used to tag all resources
+  CapacityProvider:
+    Type: String
+    Description: ECS CapacityProvider
+    AllowedValues:
+      - FARGATE
+      - FARGATE_SPOT
   ClusterName:
     Type: String
     Description: ECS Cluster Name
@@ -119,6 +125,10 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
     Properties:
+      CapacityProviderStrategy: 
+        - Base: 1
+          CapacityProvider: !Ref CapacityProvider
+          Weight: 1
       Cluster: !Ref ClusterName
       DeploymentConfiguration:
         MaximumPercent: 200

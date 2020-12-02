@@ -11,6 +11,12 @@ Parameters:
   AuthRunnerSecretArn:
     Type: String
     Description: Auth Runner Secrets Manager Arn
+  CapacityProvider:
+    Type: String
+    Description: ECS CapacityProvider
+    AllowedValues:
+      - FARGATE
+      - FARGATE_SPOT
   ClusterName:
     Type: String
     Description: ECS Cluster Name
@@ -215,6 +221,10 @@ Resources:
   JobsService: #NOTE: Do not change resource name
     Type: AWS::ECS::Service
     Properties:
+      CapacityProviderStrategy: 
+        - Base: 1
+          CapacityProvider: !Ref CapacityProvider
+          Weight: 1
       Cluster: !Ref ClusterName
       DeploymentConfiguration:
         MaximumPercent: 200
