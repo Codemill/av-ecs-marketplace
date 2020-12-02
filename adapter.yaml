@@ -295,7 +295,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
     Properties:
-      CapacityProviderStrategy: 
+      CapacityProviderStrategy:
         - Base: 1
           CapacityProvider: !Ref CapacityProvider
           Weight: 1
@@ -327,11 +327,12 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 60
+      HealthCheckIntervalSeconds: 30
       HealthCheckPath: /api/health
       HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 5
+      HealthCheckTimeoutSeconds: 2
       HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: "15"
@@ -341,7 +342,6 @@ Resources:
       Name: av-adapter
       Port: 8080
       Protocol: HTTP
-      UnhealthyThresholdCount: 2
       VpcId: !Ref Vpc
       Tags:
         - Key: application

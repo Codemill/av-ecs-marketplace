@@ -10,7 +10,7 @@ Parameters:
     Description: ECS CapacityProvider
     AllowedValues:
       - FARGATE
-      - FARGATE_SPOT 
+      - FARGATE_SPOT
   ClusterName:
     Type: String
     Description: ECS Cluster Name
@@ -243,7 +243,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
     Properties:
-      CapacityProviderStrategy: 
+      CapacityProviderStrategy:
         - Base: 1
           CapacityProvider: !Ref CapacityProvider
           Weight: 1
@@ -252,7 +252,7 @@ Resources:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
       DesiredCount: !Ref DesiredCount
-      HealthCheckGracePeriodSeconds: 150
+      HealthCheckGracePeriodSeconds: 60
       LaunchType: FARGATE
       LoadBalancers:
         - ContainerName: av-keycloak
@@ -272,11 +272,12 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 60
+      HealthCheckIntervalSeconds: 30
       HealthCheckPath: /auth/realms/master
       HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 50
+      HealthCheckTimeoutSeconds: 2
       HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: "15"
@@ -286,7 +287,6 @@ Resources:
       Name: av-keycloak
       Port: 8080
       Protocol: HTTP
-      UnhealthyThresholdCount: 2
       VpcId: !Ref Vpc
       Tags:
         - Key: application
