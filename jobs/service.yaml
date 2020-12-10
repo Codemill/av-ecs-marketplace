@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ""
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+  CapacityProvider:
+    Type: String
+    Description: ECS CapacityProvider
+    AllowedValues:
+      - FARGATE
+      - FARGATE_SPOT
+  ClusterName:
+    Type: String
+    Description: ECS Cluster Name
+  DesiredCount:
+    Type: Number
+    Description: How many copies of the service task to run
+  JobsSG:
+    Type: String
+    Description: Jobs Security Group
+  PrivateDNSNamespace:
+    Type: String
+    Description: Private DNS Namespace
+  PrivateSubnets:
+    Type: String
+    Description: Private Subnets
+  TaskDefinition:
+    Type: String
+    Description: Task Definition
+
+Resources:
+  DiscoveryService:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Description: Discovery Service for Hazelcast
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 60
+            Type: A
+          - TTL: 60
+            Type: SRV
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: jobs
+      NamespaceId: !Ref PrivateDNSNamespace
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  JobsService: #NOTE: Do not change resource name
+    Type: AWS::ECS::Service
+    Properties:
+      CapacityProviderStrategy: 
+        - Base: 1
+          CapacityProvider: !Ref CapacityProvider
+          Weight: 1
+      Cluster: !Ref ClusterName
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+      DesiredCount: !Ref DesiredCount
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - !Ref JobsSG
+          Subnets: !Split [",", !Ref PrivateSubnets]
+      PlatformVersion: "1.4.0"
+      ServiceRegistries:
+        - RegistryArn: !GetAtt DiscoveryService.Arn
+          Port: 5699
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+      TaskDefinition: !Ref TaskDefinition

@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ""
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+  RdsAllocatedStorage:
+    Type: String
+    Description: Size of the database in GB
+  RdsMaxAllocatedStorage:
+    Type: String
+    Description: Maximum size of the database in GB
+  RdsDbClass:
+    Type: String
+    AllowedValues:
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.m5.large
+    Description: The RDS Database class to use
+  RdsDbSecurityGroup:
+    Type: String
+    Description: Adapter RDS Security Group
+  MultiAZ:
+    Type: String
+    Description: "Run hot standby replica in different AZ"
+    AllowedValues:
+      - "true"
+      - "false"
+  PrivateSubnets:
+    Type: String
+    Description: Private Subnets
+
+Resources:
+  RdsDbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: AccurateVideo-Adapter-DB-Subnet-group
+      SubnetIds: !Split [",", !Ref PrivateSubnets]
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  RdsInstanceSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Accurate Video - Adapter - RDS instance secret
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "postgres"}'
+        GenerateStringKey: "password"
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: !Ref RdsAllocatedStorage
+      DBInstanceClass: !Ref RdsDbClass
+      DBName: accurate_video
+      DBSubnetGroupName: !Ref RdsDbSubnetGroup
+      DeletionProtection: true
+      Engine: Postgres
+      MasterUsername: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::password}}"
+      MaxAllocatedStorage: !Ref RdsMaxAllocatedStorage
+      MultiAZ: !Ref MultiAZ
+      StorageEncrypted: true
+      StorageType: gp2
+      VPCSecurityGroups:
+        - !Ref RdsDbSecurityGroup
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+
+Outputs:
+  DbEndpoint:
+    Description: RDS Database Endpoint
+    Value: !GetAtt DBInstance.Endpoint.Address
+
+  RdsInstanceSecret:
+    Description: RDS Instance Secret ARN
+    Value: !Ref RdsInstanceSecret

@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template will deploy a Cloud Map private DNS namespace which
+  allows services to find each other without going through the ALB. An S3 bucket
+  containing configuration files used by the services. Changes to the
+  configuration files will notify SNS which will later trigger a lambda to
+  re-deploy the service. Finally there is a CloudWatch log group which the
+  different services will send their application logs to.
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+
+Resources:
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: accurate-video
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+Outputs:
+  ClusterName:
+    Description: ECS Cluster Name
+    Value: !Ref EcsCluster

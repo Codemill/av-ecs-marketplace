@@ -1,0 +1,466 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Main template which will deploy infrastructure and services as nested stacks.
+
+Parameters:
+  AdapterRdsDbClass:
+    Type: String
+    Default: db.t3.small
+    AllowedValues:
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.m5.large
+    Description: The RDS Database class to use
+  ApplicationTag:
+    Type: String
+    Default: accurate-video
+    Description: Used to tag all resources
+  CertificateArn:
+    Type: String
+    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Route53 Hosted Zone Id
+  KeycloakRdsDbClass:
+    Type: String
+    Default: db.t3.small
+    AllowedValues:
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.m5.large
+    Description: The RDS Database class to use
+  LoadBalancerDomainName:
+    Type: String
+    Description: Domain name that will be given to the load balancer (e.g. av.example.com)
+  LogsRetention:
+    Type: Number
+    Default: 14
+    Description: Number of days that application logs are saved in CloudWatch Logs
+  PrivateSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The Private Subnets which the ECS Services and RDS Database will be deployed in (At least two)
+  PublicSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The Public Subnets which the Application Load Balancer will be deployed in (At least two)
+  Vpc:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC which AccurateVideo will be deployed in
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network
+        Parameters:
+          - Vpc
+          - PrivateSubnets
+          - PublicSubnets
+      - Label:
+          default: Database
+        Parameters:
+          - AdapterRdsDbClass
+          - KeycloakRdsDbClass
+      - Label:
+          default: DNS
+        Parameters:
+          - HostedZoneId
+          - LoadBalancerDomainName
+          - CertificateArn
+      - Label:
+          default: Other configuration
+        Parameters:
+          - ApplicationTag
+          - LogsRetention
+
+    ParameterLabels:
+      AdapterRdsDbClass:
+        default: Adapter Database Class
+      ApplicationTag:
+        default: Application Tag
+      CertificateArn:
+        default: Certificate ARN
+      HostedZoneId:
+        default: HostedZone ID
+      KeycloakRdsDbClass:
+        default: Keycloak Database Class
+      LoadBalancerDomainName:
+        default: Load Balancer Domain Name
+      LogsRetention:
+        default: Application Logs Retention
+      PrivateSubnets:
+        default: Private Subnets
+      PublicSubnets:
+        default: Public Subnets
+      Vpc:
+        default: VPC ID
+
+Mappings:
+  Service:
+    Adapter:
+      CapacityProvider: FARGATE_SPOT
+      ContainerCpu: 512
+      ContainerMemory: 1024
+      DesiredCount: 1
+      ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
+      ImageTag: 4.4.5-rc.1
+      LoadbalancerListenerPriority: 2
+      LoadbalancerListenerPath: "/api/*"
+      MultiAZ: false
+      RdsAllocatedStorage: 20
+      RdsMaxAllocatedStorage: 100
+    Analyze:
+      CapacityProvider: FARGATE_SPOT
+      ContainerCpu: 512
+      ContainerMemory: 1024
+      DesiredCount: 1
+      ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
+      ImageTag: 4.4.5-rc.2
+      LoadbalancerListenerPath: "/api/analyze/*"
+      LoadbalancerListenerPriority: 1
+    Jobs:
+      CapacityProvider: FARGATE_SPOT
+      ContainerCpu: 512
+      ContainerMemory: 1024
+      DesiredCount: 1
+      ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
+      ImageTag: 4.4.5-rc.1
+    Frontend:
+      CapacityProvider: FARGATE_SPOT
+      ContainerCpu: 256
+      ContainerMemory: 512
+      DesiredCount: 1
+      ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
+      ImageTag: 4.4.3-rc.9
+      LoadbalancerListenerPath: "*"
+      LoadbalancerListenerPriority: 4
+    Keycloak: 
+      CapacityProvider: FARGATE_SPOT
+      ContainerCpu: 512
+      ContainerMemory: 1024
+      DesiredCount: 1
+      ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-keycloak
+      ImageTag: 4.4.5-rc.3
+      LoadbalancerListenerPath: "/auth*"
+      LoadbalancerListenerPriority: 3
+      MultiAZ: false
+      RdsAllocatedStorage: 20
+      RdsMaxAllocatedStorage: 21
+  Common:
+    CloudFormation:
+      Bucket: https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation
+    DNS:
+      PrivateHostedZoneName: accurate-video.internal
+
+Resources:
+  LoadbalancerStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        CertificateArn: !Ref CertificateArn
+        HostedZoneId: !Ref HostedZoneId
+        LoadBalancerDomainName: !Sub "${LoadBalancerDomainName}."
+        PublicSubnets: !Join [",", !Ref PublicSubnets]
+        Vpc: !Ref Vpc
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/loadbalancer.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+      
+  ClusterStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/cluster.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+      
+  InfrastructureStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        LogsRetention: !Ref LogsRetention
+        PrivateHostedZoneName: !FindInMap [Common, DNS, PrivateHostedZoneName]
+        PublicLoadBalancerSecurityGroup: !GetAtt LoadbalancerStack.Outputs.SecurityGroup
+        Vpc: !Ref Vpc
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/infrastructure.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  GetVpcCidrLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        Vpc: !Ref Vpc
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/get-vpc-cidr-lambda.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  ############ Adapter ############
+  AdapterDatabaseStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        RdsAllocatedStorage: !FindInMap [Service, Adapter, RdsAllocatedStorage]
+        RdsMaxAllocatedStorage: !FindInMap [Service, Adapter, RdsMaxAllocatedStorage]
+        RdsDbClass: !Ref AdapterRdsDbClass
+        RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.AdapterRdsDbSecurityGroup
+        MultiAZ: !FindInMap [Service, Adapter, MultiAZ]
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/adapter/database.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  AdapterSecretStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/adapter/secret.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+  
+  AdapterTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        ContainerCpu: !FindInMap [Service, Adapter, ContainerCpu]
+        ContainerMemory: !FindInMap [Service, Adapter, ContainerMemory]
+        ImageRepoName: !FindInMap [Service, Adapter, ImageRepoName]
+        ImageTag: !FindInMap [Service, Adapter, ImageTag]
+        KeycloakBackendSecret: !GetAtt KeycloakSecretStack.Outputs.BackendSecret
+        KeycloakHost: !Sub "https://${LoadBalancerDomainName}"
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        AuthRunnerSecret: !GetAtt AdapterSecretStack.Outputs.AuthRunnerSecretArn
+        ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
+        DbEndpoint: !GetAtt AdapterDatabaseStack.Outputs.DbEndpoint
+        RdsInstanceSecret: !GetAtt AdapterDatabaseStack.Outputs.RdsInstanceSecret
+        VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/adapter/task.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  AdapterServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        AdapterSG: !GetAtt InfrastructureStack.Outputs.AdapterSecurityGroup
+        CapacityProvider: !FindInMap [Service, Adapter, CapacityProvider]
+        ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
+        DesiredCount: !FindInMap [Service, Adapter, DesiredCount]
+        LoadbalancerListenerPath: !FindInMap [Service, Adapter, LoadbalancerListenerPath]
+        LoadbalancerListenerPriority: !FindInMap [Service, Adapter, LoadbalancerListenerPriority]
+        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
+        PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
+        TaskDefinition: !GetAtt AdapterTaskStack.Outputs.TaskDefinition
+        Vpc: !Ref Vpc
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/adapter/service.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  ############ Frontend ############
+  FrontendTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        ContainerCpu: !FindInMap [Service, Frontend, ContainerCpu]
+        ContainerMemory: !FindInMap [Service, Frontend, ContainerMemory]
+        ImageRepoName: !FindInMap [Service, Frontend, ImageRepoName]
+        ImageTag: !FindInMap [Service, Frontend, ImageTag]
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/frontend/task.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+      
+  FrontendServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !FindInMap [Service, Frontend, CapacityProvider]
+        ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
+        DesiredCount: !FindInMap [Service, Frontend, DesiredCount]
+        FrontendSG: !GetAtt InfrastructureStack.Outputs.FrontendSecurityGroup
+        LoadbalancerListenerPath: !FindInMap [Service, Frontend, LoadbalancerListenerPath]
+        LoadbalancerListenerPriority: !FindInMap [Service, Frontend, LoadbalancerListenerPriority]
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
+        PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
+        TaskDefinition: !GetAtt FrontendTaskStack.Outputs.TaskDefinition
+        Vpc: !Ref Vpc
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/frontend/service.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  ############ Analyze ############
+  AnalyzeTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        ContainerCpu: !FindInMap [Service, Analyze, ContainerCpu]
+        ContainerMemory: !FindInMap [Service, Analyze, ContainerMemory]
+        ImageRepoName: !FindInMap [Service, Analyze, ImageRepoName]
+        ImageTag: !FindInMap [Service, Analyze, ImageTag]
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/analyze/task.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  AnalyzeServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AnalyzeSG: !GetAtt InfrastructureStack.Outputs.AnalyzeSecurityGroup
+        ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !FindInMap [Service, Analyze, CapacityProvider]
+        ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
+        LoadbalancerListenerPath: !FindInMap [Service, Analyze, LoadbalancerListenerPath]
+        LoadbalancerListenerPriority: !FindInMap [Service, Analyze, LoadbalancerListenerPriority]
+        DesiredCount: !FindInMap [Service, Analyze, DesiredCount]
+        TaskDefinition: !GetAtt AnalyzeTaskStack.Outputs.TaskDefinition
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
+        PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
+        Vpc: !Ref Vpc
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/analyze/service.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  ############ Jobs ############
+  JobsElementalStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/jobs/elemental.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  JobsTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AdapterServiceName: !GetAtt AdapterServiceStack.Outputs.ServiceName
+        ApplicationTag: !Ref ApplicationTag
+        AuthRunnerSecretArn: !GetAtt AdapterSecretStack.Outputs.AuthRunnerSecretArn
+        ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
+        ContainerCpu: !FindInMap [Service, Jobs, ContainerCpu]
+        ContainerMemory: !FindInMap [Service, Jobs, ContainerMemory]
+        ElementalRoleArn: !GetAtt JobsElementalStack.Outputs.ElementalRoleArn
+        ImageRepoName: !FindInMap [Service, Jobs, ImageRepoName]
+        ImageTag: !FindInMap [Service, Jobs, ImageTag]
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        MediaConvertPresetWav: !GetAtt JobsElementalStack.Outputs.MediaConvertPresetWav
+        MediaConvertPresetStandardH264: !GetAtt JobsElementalStack.Outputs.MediaConvertPresetStandardH264
+        PrivateHostedZoneName: !FindInMap [Common, DNS, PrivateHostedZoneName]
+        VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/jobs/task.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+      
+  JobsServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !FindInMap [Service, Jobs, CapacityProvider]
+        ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
+        DesiredCount: !FindInMap [Service, Jobs, DesiredCount]
+        JobsSG: !GetAtt InfrastructureStack.Outputs.JobsSecurityGroup
+        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
+        TaskDefinition: !GetAtt JobsTaskStack.Outputs.TaskDefinition
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/jobs/service.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  ############ Keycloak ############
+  KeycloakSecretStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/keycloak/secret.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  KeycloakDatabaseStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        MultiAZ: !FindInMap [Service, Adapter, MultiAZ]
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
+        RdsAllocatedStorage: !FindInMap [Service, Keycloak, RdsAllocatedStorage]
+        RdsMaxAllocatedStorage: !FindInMap [Service, Keycloak, RdsMaxAllocatedStorage]
+        RdsDbClass: !Ref KeycloakRdsDbClass
+        RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.KeycloakRdsDbSecurityGroup
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/keycloak/database.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  KeycloakTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        ContainerCpu: !FindInMap [Service, Keycloak, ContainerCpu]
+        ContainerMemory: !FindInMap [Service, Keycloak, ContainerMemory]
+        FrontendUrl: !Sub https://${LoadBalancerDomainName}/
+        ImageRepoName: !FindInMap [Service, Keycloak, ImageRepoName]
+        ImageTag: !FindInMap [Service, Keycloak, ImageTag]
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        KeycloakSecret: !GetAtt KeycloakSecretStack.Outputs.KeycloakSecret
+        BackendSecret: !GetAtt KeycloakSecretStack.Outputs.BackendSecret
+        AdminSecret: !GetAtt KeycloakSecretStack.Outputs.AdminSecret
+        RdsInstanceSecret: !GetAtt KeycloakDatabaseStack.Outputs.RdsInstanceSecret
+        DbEndpoint: !GetAtt KeycloakDatabaseStack.Outputs.DbEndpoint
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/keycloak/task.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  KeycloakServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !FindInMap [Service, Keycloak, CapacityProvider]
+        ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
+        DesiredCount: !FindInMap [Service, Keycloak, DesiredCount]
+        KeycloakSG: !GetAtt InfrastructureStack.Outputs.KeycloakSecurityGroup
+        LoadbalancerListenerPriority: !FindInMap [Service, Keycloak, LoadbalancerListenerPriority]
+        LoadbalancerListenerPath: !FindInMap [Service, Keycloak, LoadbalancerListenerPath]
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
+        PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
+        TaskDefinition: !GetAtt KeycloakTaskStack.Outputs.TaskDefinition
+        Vpc: !Ref Vpc
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/keycloak/service.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30

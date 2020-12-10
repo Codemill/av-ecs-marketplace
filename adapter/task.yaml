@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ""
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+  ContainerCpu:
+    Type: Number
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Description: How much memory in megabytes to give the container
+  ImageRepoName:
+    Type: String
+    Description: The ecr repo to use for image deployment
+  ImageTag:
+    Type: String
+    Description: The ecr tag to use for image deployment
+  KeycloakBackendSecret:
+    Type: String
+    Description: SecretsManager ARN for Keycloak Backend
+  KeycloakHost:
+    Type: String
+    Description: Keycloak host name
+  LogGroupName:
+    Type: String
+    Description: CloudWatch Log Group Name
+  AuthRunnerSecret:
+    Type: String
+    Description: AuthRunner Secret
+  ClusterName:
+    Type: String
+    Description: Cluster Name
+  DbEndpoint:
+    Type: String
+    Description: DB Endpoint
+  RdsInstanceSecret:
+    Type: String
+    Description: RDS Instance Secret
+  VpcCidrBlock:
+    Type: String
+    Description: VPC CIDR Block
+
+Resources:
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: av-adapter
+      Cpu: !Ref ContainerCpu
+      Memory: !Ref ContainerMemory
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: av-adapter
+          Cpu: !Ref ContainerCpu
+          Memory: !Ref ContainerMemory
+          Image: !Sub ${ImageRepoName}:${ImageTag}
+          PortMappings:
+            - ContainerPort: 8080
+            - ContainerPort: 5701
+            - ContainerPort: 5699
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroupName
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: av-adapter
+          Environment:
+            - Name: QUARKUS_SECURITY_USERS_FILE_ENABLED
+              Value: "false"
+            - Name: DB_HOST
+              Value: !Ref DbEndpoint
+            - Name: HZE_CLUSTER_NAME_REGEXP
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster\/${ClusterName}
+            - Name: HZE_SERVICE_NAME_REGEXP
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/${ClusterName}\/[a-zA-z0-9].*-(JobsService|AdapterService)-.*[a-zA-z0-9]
+            - Name: KEYCLOAK_HOST
+              Value: !Ref KeycloakHost
+            - Name: HZE_IPV4_CIDR
+              Value: !Ref VpcCidrBlock
+          Secrets:
+            - Name: DB_USER
+              ValueFrom: !Sub "${RdsInstanceSecret}:username::"
+            - Name: DB_PASS
+              ValueFrom: !Sub "${RdsInstanceSecret}:password::"
+            - Name: AUTH_RUNNER_USERNAME
+              ValueFrom: !Sub "${AuthRunnerSecret}:username::"
+            - Name: AUTH_RUNNER_PASSWORD
+              ValueFrom: !Sub "${AuthRunnerSecret}:password::"
+            - Name: KEYCLOAK_BACKEND_PASSWORD
+              ValueFrom: !Sub "${KeycloakBackendSecret}:password::"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref RdsInstanceSecret
+                  - !Ref AuthRunnerSecret
+                  - !Ref KeycloakBackendSecret
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSMarketplaceMeteringRegisterUsage
+      Policies:
+        - PolicyName: AmazonECSTaskRolePolicy
+          PolicyDocument:
+            Statement:
+              - Sid: HazelcastDiscovery
+                Effect: Allow
+                Action:
+                  - ecs:ListClusters
+                  - ecs:ListServices
+                  - ecs:ListTasks
+                  - ecs:DescribeTasks
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - aws-marketplace:RegisterUsage
+                  - aws-marketplace:MeterUsage
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:HeadObject
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: "*"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+Outputs:
+  TaskDefinition:
+    Description: Task Definition
+    Value: !Ref TaskDefinition

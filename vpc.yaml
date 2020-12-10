@@ -193,7 +193,9 @@ Resources:
           - 2
           - Fn::GetAZs: { Ref: AWS::Region }
       VpcId: !Ref Vpc
-      CidrBlock: !Select [5, !Cidr [!GetAtt Vpc.CidrBlock, 6, 8]] #TODO
+      # TODO: Last number is the num of bytes used by the subnet
+      #   It only supports /16 right now
+      CidrBlock: !Select [5, !Cidr [!GetAtt Vpc.CidrBlock, 6, 8]]
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
@@ -355,7 +357,27 @@ Outputs:
     Value: !Ref Vpc
   PrivateSubnets:
     Description: Private subnets in the VPC
-    Value: !If [ UseThreeAz , !Join [ ",", [ !Ref PrivateSubnetOne, !Ref PrivateSubnetTwo, !Ref PrivateSubnetThree ] ] , !Join [ ",", [ !Ref PrivateSubnetOne, !Ref PrivateSubnetTwo] ] ]
+    Value:
+      !If [
+        UseThreeAz,
+        !Join [
+          ",",
+          [
+            !Ref PrivateSubnetOne,
+            !Ref PrivateSubnetTwo,
+            !Ref PrivateSubnetThree,
+          ],
+        ],
+        !Join [",", [!Ref PrivateSubnetOne, !Ref PrivateSubnetTwo]],
+      ]
   PublicSubnets:
     Description: Public subnets in the VPC
-    Value: !If [ UseThreeAz , !Join [ ",", [ !Ref PublicSubnetOne, !Ref PublicSubnetTwo, !Ref PublicSubnetThree ] ] , !Join [ ",", [ !Ref PublicSubnetOne, !Ref PublicSubnetTwo] ] ]
+    Value:
+      !If [
+        UseThreeAz,
+        !Join [
+          ",",
+          [!Ref PublicSubnetOne, !Ref PublicSubnetTwo, !Ref PublicSubnetThree],
+        ],
+        !Join [",", [!Ref PublicSubnetOne, !Ref PublicSubnetTwo]],
+      ]

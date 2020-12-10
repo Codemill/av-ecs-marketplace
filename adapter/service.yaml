@@ -1,10 +1,13 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Deploy a service on AWS Fargate, hosted in a private subnet, but accessible via a public load balancer.
+Description: ""
 
 Parameters:
   ApplicationTag:
     Type: String
     Description: Used to tag all resources
+  AdapterSG:
+    Type: String
+    Description: Adapter Security Group
   CapacityProvider:
     Type: String
     Description: ECS CapacityProvider
@@ -14,88 +17,54 @@ Parameters:
   ClusterName:
     Type: String
     Description: ECS Cluster Name
-  ContainerCpu:
-    Type: Number
-    Description: How much CPU to give the container. 1024 is 1 CPU
-  ContainerMemory:
-    Type: Number
-    Description: How much memory in megabytes to give the container
   DesiredCount:
     Type: Number
     Description: How many copies of the service task to run
-  FrontendSG:
-    Type: String
-    Description: Frontend Security Group
-  ImageRepoName:
-    Type: String
-    Description: The repo and tag to use for image deployment
-  ImageTag:
-    Type: String
-    Description: The ecr repo and tag to use for image deployment
   LoadbalancerListenerPath:
     Type: String
     Description: Loadbalancer Listener Rule Path
   LoadbalancerListenerPriority:
     Type: String
     Description: Loadbalancer Listener Rule Priority
-  LogGroupName:
+
+  PrivateDNSNamespace:
     Type: String
-    Description: CloudWatch Log Group Name
+    Description: Private DNS Namespace
   PrivateSubnets:
     Type: String
     Description: Private Subnets
   PublicLoadbalancerListenerArn:
     Type: String
     Description: Public Loadbalancer Listener Arn
+  TaskDefinition:
+    Type: String
+    Description: Task Definition
+
   Vpc:
     Type: String
     Description: VPC ID
-
 Resources:
-  TaskDefinition:
-    Type: AWS::ECS::TaskDefinition
+
+  DiscoveryService:
+    Type: AWS::ServiceDiscovery::Service
     Properties:
-      Family: av-frontend
-      Cpu: !Ref "ContainerCpu"
-      Memory: !Ref "ContainerMemory"
-      NetworkMode: awsvpc
-      RequiresCompatibilities:
-        - FARGATE
-      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
-      ContainerDefinitions:
-        - Name: av-frontend
-          Cpu: !Ref "ContainerCpu"
-          Memory: !Ref "ContainerMemory"
-          Image: !Sub ${ImageRepoName}:${ImageTag}
-          LogConfiguration:
-            LogDriver: "awslogs"
-            Options:
-              awslogs-group: !Ref LogGroupName
-              awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: av-frontend
-          PortMappings:
-            - ContainerPort: 80
+      Description: Discovery Service for Hazelcast
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 60
+            Type: A
+          - TTL: 60
+            Type: SRV
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: adapter
+      NamespaceId: !Ref PrivateDNSNamespace
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
 
-  ECSTaskExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: [ecs-tasks.amazonaws.com]
-            Action: ["sts:AssumeRole"]
-      Path: /
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  Service:
+  AdapterService: #NOTE: Do not change resource name
     Type: AWS::ECS::Service
     DependsOn: LoadBalancerRule
     Properties:
@@ -107,39 +76,43 @@ Resources:
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 75
-      DesiredCount: !Ref "DesiredCount"
+      DesiredCount: !Ref DesiredCount
       HealthCheckGracePeriodSeconds: 60
-      LaunchType: FARGATE
       LoadBalancers:
-        - ContainerName: av-frontend
-          ContainerPort: 80
-          TargetGroupArn: !Ref "TargetGroup"
+        - ContainerName: av-adapter
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
-            - !Ref FrontendSG
+            - !Ref AdapterSG
           Subnets: !Split [",", !Ref PrivateSubnets]
       PlatformVersion: "1.4.0"
+      ServiceRegistries:
+        - RegistryArn: !GetAtt DiscoveryService.Arn
+          Port: 8080
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
-      TaskDefinition: !Ref "TaskDefinition"
+      TaskDefinition: !Ref TaskDefinition
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       HealthCheckIntervalSeconds: 30
-      HealthCheckPath: /
+      HealthCheckPath: /api/health
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 2
       HealthyThresholdCount: 2
       UnhealthyThresholdCount: 3
-      TargetType: ip
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: "15"
-      Name: av-frontend
-      Port: 80
+      Matcher:
+        HttpCode: "200,401"
+      TargetType: ip
+      Name: av-adapter
+      Port: 8080
       Protocol: HTTP
       VpcId: !Ref Vpc
       Tags:
@@ -150,10 +123,15 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       Actions:
-        - TargetGroupArn: !Ref "TargetGroup"
-          Type: "forward"
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
       Conditions:
         - Field: path-pattern
           Values: [!Ref LoadbalancerListenerPath]
       ListenerArn: !Ref PublicLoadbalancerListenerArn
       Priority: !Ref LoadbalancerListenerPriority
+
+Outputs:
+  ServiceName:
+    Description: Service name
+    Value: !GetAtt DiscoveryService.Name

@@ -10,24 +10,15 @@ Parameters:
   ApplicationTag:
     Type: String
     Description: Used to tag all resources
-  CertificateArn:
-    Type: String
-    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
-  HostedZoneId:
-    Type: String
-    Description: Route53 Hosted Zone Id
-  LoadBalancerDomainName:
-    Type: String
-    Description: Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)
   LogsRetention:
     Type: Number
     Description: Number of days that application logs are saved
   PrivateHostedZoneName:
     Type: String
     Description: Private HostedZone Name
-  PublicSubnets:
+  PublicLoadBalancerSecurityGroup:
     Type: String
-    Description: Public Subnets
+    Description: Public Loadbalancer SecurityGroup
   Vpc:
     Type: String
     Description: VPC ID
@@ -43,93 +34,16 @@ Resources:
         - Key: application
           Value: !Ref ApplicationTag
 
-  EcsCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: accurate-video
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  ########################## Load Balancer ############################
+  ######################## CloudWatch Log Group #######################
   #####################################################################
-  PublicLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  LogGroup:
+    Type: AWS::Logs::LogGroup
     Properties:
-      Scheme: internet-facing
-      LoadBalancerAttributes:
-        - Key: idle_timeout.timeout_seconds
-          Value: "30"
-      Subnets: !Split [ ',', !Ref PublicSubnets ]
-      SecurityGroups: [!Ref PublicLoadBalancerSecurityGroup]
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-
-  PublicLoadBalancerListenerHttp:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - RedirectConfig:
-            Host: "#{host}"
-            Path: "/#{path}"
-            Port: "443"
-            Protocol: HTTPS
-            Query: "#{query}"
-            StatusCode: HTTP_301
-          Type: redirect
-      LoadBalancerArn: !Ref PublicLoadBalancer
-      Port: 80
-      Protocol: HTTP
-
-  PublicLoadBalancerListenerHttps:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - FixedResponseConfig:
-            ContentType: text/plain
-            MessageBody: "Not implemented"
-            StatusCode: "200"
-          Type: fixed-response
-      LoadBalancerArn: !Ref PublicLoadBalancer
-      Port: 443
-      Protocol: HTTPS
-      SslPolicy: "ELBSecurityPolicy-2016-08"
-      Certificates:
-        - CertificateArn: !Ref CertificateArn
-
-  AliasRecord:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      AliasTarget:
-        DNSName: !GetAtt PublicLoadBalancer.DNSName
-        HostedZoneId: !GetAtt PublicLoadBalancer.CanonicalHostedZoneID
-      HostedZoneId: !Ref HostedZoneId
-      Name: !Ref LoadBalancerDomainName
-      Type: A
+      LogGroupName: "accurate-video"
+      RetentionInDays: !Ref LogsRetention
 
   ######################### Security Groups ###########################
   #####################################################################
-  PublicLoadBalancerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Access to the public facing load balancer
-      VpcId: !Ref Vpc
-      SecurityGroupIngress:
-        - CidrIp: 0.0.0.0/0
-          IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-        - CidrIp: 0.0.0.0/0
-          IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-      Tags:
-        - Key: application
-          Value: !Ref ApplicationTag
-        - Key: Name
-          Value: AccurateVideo - ALB SG
-        
   AdapterRdsDbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -317,14 +231,6 @@ Resources:
       SourceSecurityGroupId: !Ref PublicLoadBalancerSecurityGroup
       GroupId: !Ref KeycloakSecurityGroup
 
-  ######################## CloudWatch Log Group #######################
-  #####################################################################
-  LogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: "accurate-video"
-      RetentionInDays: !Ref LogsRetention
-
 Outputs:
   LogGroup:
     Description: The name of the Log Group
@@ -335,9 +241,6 @@ Outputs:
   AdapterSecurityGroup:
     Description: Security group for the Adapter service
     Value: !Ref AdapterSecurityGroup
-  ClusterName:
-    Description: ECS Cluster Name
-    Value: !Ref EcsCluster
   FrontendSecurityGroup:
     Description: Security group for the Frontend service
     Value: !Ref FrontendSecurityGroup
@@ -347,9 +250,6 @@ Outputs:
   JobsSecurityGroup:
     Description: Security group for the Jobs service
     Value: !Ref JobsSecurityGroup
-  PublicListener:
-    Description: The ARN of the public load balancer's Listener
-    Value: !Ref PublicLoadBalancerListenerHttps
   PrivateDnsNamespace:
     Description: Private DNS Namespace
     Value: !Ref PrivateDnsNamespace

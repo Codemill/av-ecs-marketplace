@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template will deploy a Cloud Map private DNS namespace which
+  allows services to find each other without going through the ALB. An S3 bucket
+  containing configuration files used by the services. Changes to the
+  configuration files will notify SNS which will later trigger a lambda to
+  re-deploy the service. Finally there is a CloudWatch log group which the
+  different services will send their application logs to.
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+  CertificateArn:
+    Type: String
+    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
+  HostedZoneId:
+    Type: String
+    Description: Route53 Hosted Zone Id
+  LoadBalancerDomainName:
+    Type: String
+    Description: Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)
+  PublicSubnets:
+    Type: String
+    Description: Public Subnets
+  Vpc:
+    Type: String
+    Description: VPC ID
+
+Resources:
+  PublicLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: "30"
+      Subnets: !Split [ ',', !Ref PublicSubnets ]
+      SecurityGroups: [!Ref SecurityGroup]
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  PublicLoadBalancerListenerHttp:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - RedirectConfig:
+            Host: "#{host}"
+            Path: "/#{path}"
+            Port: "443"
+            Protocol: HTTPS
+            Query: "#{query}"
+            StatusCode: HTTP_301
+          Type: redirect
+      LoadBalancerArn: !Ref PublicLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  PublicLoadBalancerListenerHttps:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - FixedResponseConfig:
+            ContentType: text/plain
+            MessageBody: "Not implemented"
+            StatusCode: "200"
+          Type: fixed-response
+      LoadBalancerArn: !Ref PublicLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: "ELBSecurityPolicy-2016-08"
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+
+  AliasRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      AliasTarget:
+        DNSName: !GetAtt PublicLoadBalancer.DNSName
+        HostedZoneId: !GetAtt PublicLoadBalancer.CanonicalHostedZoneID
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref LoadBalancerDomainName
+      Type: A
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the public facing load balancer
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+        - Key: Name
+          Value: AccurateVideo - ALB SG
+        
+
+Outputs:
+  PublicListener:
+    Description: The ARN of the public load balancer's Listener
+    Value: !Ref PublicLoadBalancerListenerHttps
+  SecurityGroup:
+    Description: The SecurityGroup attached to the public load balancer
+    Value: !Ref SecurityGroup

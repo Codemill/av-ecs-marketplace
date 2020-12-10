@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ""
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+  CapacityProvider:
+    Type: String
+    Description: ECS CapacityProvider
+    AllowedValues:
+      - FARGATE
+      - FARGATE_SPOT
+  ClusterName:
+    Type: String
+    Description: ECS Cluster Name
+  DesiredCount:
+    Type: Number
+    Description: How many copies of the service task to run
+  FrontendSG:
+    Type: String
+    Description: Frontend Security Group
+  LoadbalancerListenerPath:
+    Type: String
+    Description: Loadbalancer Listener Rule Path
+  LoadbalancerListenerPriority:
+    Type: String
+    Description: Loadbalancer Listener Rule Priority
+  PrivateSubnets:
+    Type: String
+    Description: Private Subnets
+  PublicLoadbalancerListenerArn:
+    Type: String
+    Description: Public Loadbalancer Listener Arn
+  TaskDefinition:
+    Type: String
+    Description: Task Definition
+  Vpc:
+    Type: String
+    Description: VPC ID
+
+Resources:
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: LoadBalancerRule
+    Properties:
+      CapacityProviderStrategy:
+        - Base: 1
+          CapacityProvider: !Ref CapacityProvider
+          Weight: 1
+      Cluster: !Ref ClusterName
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+      DesiredCount: !Ref "DesiredCount"
+      HealthCheckGracePeriodSeconds: 60
+      LoadBalancers:
+        - ContainerName: av-frontend
+          ContainerPort: 80
+          TargetGroupArn: !Ref "TargetGroup"
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - !Ref FrontendSG
+          Subnets: !Split [",", !Ref PrivateSubnets]
+      PlatformVersion: "1.4.0"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+      TaskDefinition: !Ref "TaskDefinition"
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 2
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetType: ip
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "15"
+      Name: av-frontend
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  LoadBalancerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref "TargetGroup"
+          Type: "forward"
+      Conditions:
+        - Field: path-pattern
+          Values: [!Ref LoadbalancerListenerPath]
+      ListenerArn: !Ref PublicLoadbalancerListenerArn
+      Priority: !Ref LoadbalancerListenerPriority
