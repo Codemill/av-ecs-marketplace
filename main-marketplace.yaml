@@ -104,7 +104,7 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
-      ImageTag: 4.4.5-rc.1
+      ImageTag: 4.5.2
       LoadbalancerListenerPriority: 2
       LoadbalancerListenerPath: "/api/*"
       MultiAZ: false
@@ -116,7 +116,7 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
-      ImageTag: 4.4.5-rc.2
+      ImageTag: 4.5.2
       LoadbalancerListenerPath: "/api/analyze/*"
       LoadbalancerListenerPriority: 1
     Jobs:
@@ -125,14 +125,14 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
-      ImageTag: 4.4.5-rc.1
+      ImageTag: 4.5.2
     Frontend:
       CapacityProvider: FARGATE_SPOT
       ContainerCpu: 256
       ContainerMemory: 512
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
-      ImageTag: 4.4.3-rc.9
+      ImageTag: 4.5.2
       LoadbalancerListenerPath: "*"
       LoadbalancerListenerPriority: 4
     Keycloak:
@@ -141,7 +141,7 @@ Mappings:
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-keycloak
-      ImageTag: 4.4.5-rc.3
+      ImageTag: 4.5.2
       LoadbalancerListenerPath: "/auth*"
       LoadbalancerListenerPriority: 3
       MultiAZ: false
