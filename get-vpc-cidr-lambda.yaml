@@ -8,13 +8,13 @@ Parameters:
   Vpc:
     Type: String
     Description: VPC ID
-  
+
 Resources:
   CustomLambda:
     Type: Custom::GetVpcCidr
     Properties:
       ServiceToken: !GetAtt LambdaFunction.Arn
-  
+
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:

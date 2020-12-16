@@ -101,7 +101,7 @@ Resources:
           Value: !Ref ApplicationTag
         - Key: Name
           Value: AccurateVideo - ALB SG
-        
+
 
 Outputs:
   PublicListener:

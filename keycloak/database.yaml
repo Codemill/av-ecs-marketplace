@@ -31,7 +31,7 @@ Parameters:
   RdsDbSecurityGroup:
     Type: String
     Description: Adapter RDS Security Group
-    
+
 Resources:
   RdsDbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup

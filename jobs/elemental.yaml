@@ -5,7 +5,7 @@ Parameters:
   ApplicationTag:
     Type: String
     Description: Used to tag all resources
-    
+
 Resources:
   ElementalRole:
     Type: AWS::IAM::Role

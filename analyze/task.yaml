@@ -4,7 +4,7 @@ Description: ""
 Parameters:
   ApplicationTag:
     Type: String
-    Description: Used to tag all resources  
+    Description: Used to tag all resources
   ContainerCpu:
     Type: Number
     Description: How much CPU to give the container. 1024 is 1 CPU
@@ -89,7 +89,7 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
-          
+
 Outputs:
   TaskDefinition:
     Description: Task Definition

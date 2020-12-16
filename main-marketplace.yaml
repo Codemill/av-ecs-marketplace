@@ -135,7 +135,7 @@ Mappings:
       ImageTag: 4.4.3-rc.9
       LoadbalancerListenerPath: "*"
       LoadbalancerListenerPriority: 4
-    Keycloak: 
+    Keycloak:
       CapacityProvider: FARGATE_SPOT
       ContainerCpu: 512
       ContainerMemory: 1024
@@ -168,7 +168,7 @@ Resources:
         - ${TemplatesS3Bucket}/loadbalancer.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
-      
+
   ClusterStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -178,7 +178,7 @@ Resources:
         - ${TemplatesS3Bucket}/cluster.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
-      
+
   InfrastructureStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -230,7 +230,7 @@ Resources:
         - ${TemplatesS3Bucket}/adapter/secret.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
-  
+
   AdapterTaskStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -289,7 +289,7 @@ Resources:
         - ${TemplatesS3Bucket}/frontend/task.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
-      
+
   FrontendServiceStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -379,7 +379,7 @@ Resources:
         - ${TemplatesS3Bucket}/jobs/task.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
-      
+
   JobsServiceStack:
     Type: AWS::CloudFormation::Stack
     Properties:

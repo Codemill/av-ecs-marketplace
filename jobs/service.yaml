@@ -53,7 +53,7 @@ Resources:
   JobsService: #NOTE: Do not change resource name
     Type: AWS::ECS::Service
     Properties:
-      CapacityProviderStrategy: 
+      CapacityProviderStrategy:
         - Base: 1
           CapacityProvider: !Ref CapacityProvider
           Weight: 1

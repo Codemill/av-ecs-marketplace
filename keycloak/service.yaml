@@ -38,7 +38,7 @@ Parameters:
   TaskDefinition:
     Type: String
     Description: Task Definition
-      
+
 Resources:
   Service:
     Type: AWS::ECS::Service
