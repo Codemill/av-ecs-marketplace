@@ -2,7 +2,7 @@
 
 PROFILE="${1}"
 BUCKET="${2}"
-FORCE="${3:-\"false\"}"
+VERSION="${3:-latest}"
 
 if [ -z "${PROFILE}" ] ; then
   read -rp "AWS Profile: " PROFILE
@@ -12,11 +12,8 @@ if [ -z "${BUCKET}" ] ; then
   read -rp "Template bucket: " BUCKET
 fi
 
-if [ "${FORCE}" != "true" ] ; then
-  read -rp "Upload templates to '${BUCKET}' using profile '${PROFILE}'? (n) " q
-  if [ "${q}" = "${q#[Yy]}" ]; then
-    exit 0
-  fi
+if [ -z "${VERSION}" ] ; then
+  read -rp "Template version: " VERSION
 fi
 
 aws s3 sync \
@@ -26,4 +23,4 @@ aws s3 sync \
   --exclude "*.md" \
   --exclude "docs/*" \
   --exclude "deploy.sh" \
-  . "s3://${BUCKET}"
+  . "s3://${BUCKET}/${VERSION}"
