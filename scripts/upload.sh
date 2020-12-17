@@ -18,9 +18,10 @@ fi
 
 aws s3 sync \
   --profile "${PROFILE}" \
+  --exclude ".DS_Store" \
+  --exclude "scripts/*" \
   --exclude ".git/*" \
   --exclude ".gitignore" \
   --exclude "*.md" \
   --exclude "docs/*" \
-  --exclude "deploy.sh" \
   . "s3://${BUCKET}/${VERSION}"
