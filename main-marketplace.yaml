@@ -149,7 +149,7 @@ Mappings:
       RdsMaxAllocatedStorage: 21
   Common:
     CloudFormation:
-      Bucket: https://s3-eu-north-1.amazonaws.com/av-marketplace-cf
+      Bucket: https://s3-eu-north-1.amazonaws.com/av-marketplace-cf/latest
     DNS:
       PrivateHostedZoneName: accurate-video.internal
 
