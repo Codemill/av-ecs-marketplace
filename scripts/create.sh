@@ -35,9 +35,9 @@ aws cloudformation create-stack \
     ParameterKey=KeycloakRdsDbClass,ParameterValue="db.t3.small" \
     ParameterKey=LoadBalancerDomainName,ParameterValue="marketplace.cmtest.se" \
     ParameterKey=LogsRetention,ParameterValue="14" \
-    ParameterKey=PrivateSubnets,ParameterValue=\"subnet-0387157eb524052db,subnet-0cd1578fd52130980\" \
-    ParameterKey=PublicSubnets,ParameterValue=\"subnet-00dfad3aa0036eaf1,subnet-0604c6efce04b1bf7\" \
-    ParameterKey=Vpc,ParameterValue="vpc-0efb3957cf16aeceb" \
+    ParameterKey=PrivateSubnets,ParameterValue=\"subnet-05c0229b5cf088800,subnet-01f037d667825a613\" \
+    ParameterKey=PublicSubnets,ParameterValue=\"subnet-0ff5e8f620dd581e8,subnet-0e6cb7ae43947e8f9\" \
+    ParameterKey=Vpc,ParameterValue="vpc-037991747cf701ea6" \
   --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
   --profile "${PROFILE}" \
   --region "${REGION}"
