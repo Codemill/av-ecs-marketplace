@@ -6,15 +6,15 @@
 
 TODO: Insert link button to product
 
-### Step 2: Setup HostedZone and CertificateManager
+### Step 2: Setup HostedZone (optional)
 
-[Create a Hosted Zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingHostedZone.html) with a valid domain name, and [Create a certificate in ACM](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html) for your Hosted Zone in the region that you want to run in.
+If you already have a Hosted Zone in Route53 that you want to use, skip to the next step.
 
-TODO: Show where to get the Certificate ARN for a later step.
+[Create a Hosted Zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingHostedZone.html) with a valid domain name.
 
 ### Step 3: Create a new VPC (optional)
 
-If you already have a VPC that you want to re-use, skip to step 4.
+If you already have a VPC that you want to re-use, skip the next step.
 
 Click the button below to create a new VPC:
 

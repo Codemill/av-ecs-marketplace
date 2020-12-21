@@ -16,9 +16,33 @@ Parameters:
     Type: String
     Default: accurate-video
     Description: Used to tag all resources
-  CertificateArn:
+  CapacityProvider:
     Type: String
-    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
+    Default: FARGATE
+    AllowedValues:
+      - FARGATE
+      - FARGATE_SPOT
+    Description: Capacity Provider, FARGATE_SPOT is ... #TODO
+  AdapterImageTag:
+    Type: String
+    Default: 4.5.3
+    Description: "" #TODO
+  AnalyzeImageTag:
+    Type: String
+    Default: 4.5.3
+    Description: "" #TODO
+  JobsImageTag:
+    Type: String
+    Default: 4.5.3
+    Description: "" #TODO
+  FrontendImageTag:
+    Type: String
+    Default: 4.5.3
+    Description: "" #TODO
+  KeycloakImageTag:
+    Type: String
+    Default: 4.5.3
+    Description: "" #TODO
   HostedZoneId:
     Type: AWS::Route53::HostedZone::Id
     Description: Route53 Hosted Zone Id
@@ -33,7 +57,9 @@ Parameters:
     Description: The RDS Database class to use
   LoadBalancerDomainName:
     Type: String
-    Description: Domain name that will be given to the load balancer (e.g. av.example.com)
+    Description: Full domain name that will be given to the load balancer (e.g. av.example.com)
+    AllowedPattern: "\\b((?=[a-z0-9-]{1,63}\\.)[a-z0-9]+(-[a-z0-9]+)*\\.)+[a-z]{2,63}\\b"
+    ConstraintDescription: must be a valid domain name (e.g. av.example.com)
   LogsRetention:
     Type: Number
     Default: 14
@@ -58,20 +84,28 @@ Metadata:
           - PrivateSubnets
           - PublicSubnets
       - Label:
+          default: DNS
+        Parameters:
+          - HostedZoneId
+          - LoadBalancerDomainName
+      - Label:
+          default: Docker Images
+        Parameters:
+          - AdapterImageTag
+          - AnalyzeImageTag
+          - JobsImageTag
+          - FrontendImageTag
+          - KeycloakImageTag
+      - Label:
           default: Database
         Parameters:
           - AdapterRdsDbClass
           - KeycloakRdsDbClass
       - Label:
-          default: DNS
-        Parameters:
-          - HostedZoneId
-          - LoadBalancerDomainName
-          - CertificateArn
-      - Label:
           default: Other configuration
         Parameters:
           - ApplicationTag
+          - CapacityProvider
           - LogsRetention
 
     ParameterLabels:
@@ -79,8 +113,18 @@ Metadata:
         default: Adapter Database Class
       ApplicationTag:
         default: Application Tag
-      CertificateArn:
-        default: Certificate ARN
+      AdapterImageTag:
+        default: Adapter Image Tag
+      AnalyzeImageTag:
+        default: Analyze Image Tag
+      JobsImageTag:
+        default: Jobs Image Tag
+      FrontendImageTag:
+        default: Frontend Image Tag
+      KeycloakImageTag:
+        default: Keycloak Image Tag
+      CapacityProvider:
+        default: Capacity Provider
       HostedZoneId:
         default: HostedZone ID
       KeycloakRdsDbClass:
@@ -99,49 +143,44 @@ Metadata:
 Mappings:
   Service:
     Adapter:
-      CapacityProvider: FARGATE_SPOT
+      CapacityProvider: !Ref CapacityProvider
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
-      ImageTag: 4.5.2
       LoadbalancerListenerPriority: 2
       LoadbalancerListenerPath: "/api/*"
       MultiAZ: false
       RdsAllocatedStorage: 20
       RdsMaxAllocatedStorage: 100
     Analyze:
-      CapacityProvider: FARGATE_SPOT
+      CapacityProvider: !Ref CapacityProvider
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
-      ImageTag: 4.5.2
       LoadbalancerListenerPath: "/api/analyze/*"
       LoadbalancerListenerPriority: 1
     Jobs:
-      CapacityProvider: FARGATE_SPOT
+      CapacityProvider: !Ref CapacityProvider
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
-      ImageTag: 4.5.2
     Frontend:
-      CapacityProvider: FARGATE_SPOT
+      CapacityProvider: !Ref CapacityProvider
       ContainerCpu: 256
       ContainerMemory: 512
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
-      ImageTag: 4.5.2
       LoadbalancerListenerPath: "*"
       LoadbalancerListenerPriority: 4
     Keycloak:
-      CapacityProvider: FARGATE_SPOT
+      CapacityProvider: !Ref CapacityProvider
       ContainerCpu: 512
       ContainerMemory: 1024
       DesiredCount: 1
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-keycloak
-      ImageTag: 4.5.2
       LoadbalancerListenerPath: "/auth*"
       LoadbalancerListenerPriority: 3
       MultiAZ: false
@@ -159,7 +198,6 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-        CertificateArn: !Ref CertificateArn
         HostedZoneId: !Ref HostedZoneId
         LoadBalancerDomainName: !Sub "${LoadBalancerDomainName}."
         PublicSubnets: !Join [",", !Ref PublicSubnets]
@@ -239,7 +277,7 @@ Resources:
         ContainerCpu: !FindInMap [Service, Adapter, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Adapter, ContainerMemory]
         ImageRepoName: !FindInMap [Service, Adapter, ImageRepoName]
-        ImageTag: !FindInMap [Service, Adapter, ImageTag]
+        ImageTag: !Ref AdapterImageTag
         KeycloakBackendSecret: !GetAtt KeycloakSecretStack.Outputs.BackendSecret
         KeycloakHost: !Sub "https://${LoadBalancerDomainName}"
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
@@ -283,7 +321,7 @@ Resources:
         ContainerCpu: !FindInMap [Service, Frontend, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Frontend, ContainerMemory]
         ImageRepoName: !FindInMap [Service, Frontend, ImageRepoName]
-        ImageTag: !FindInMap [Service, Frontend, ImageTag]
+        ImageTag: !Ref FrontendImageTag
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
       TemplateURL: !Sub
         - ${TemplatesS3Bucket}/frontend/task.yaml
@@ -319,7 +357,7 @@ Resources:
         ContainerCpu: !FindInMap [Service, Analyze, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Analyze, ContainerMemory]
         ImageRepoName: !FindInMap [Service, Analyze, ImageRepoName]
-        ImageTag: !FindInMap [Service, Analyze, ImageTag]
+        ImageTag: !Ref AnalyzeImageTag
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
       TemplateURL: !Sub
         - ${TemplatesS3Bucket}/analyze/task.yaml
@@ -369,7 +407,7 @@ Resources:
         ContainerMemory: !FindInMap [Service, Jobs, ContainerMemory]
         ElementalRoleArn: !GetAtt JobsElementalStack.Outputs.ElementalRoleArn
         ImageRepoName: !FindInMap [Service, Jobs, ImageRepoName]
-        ImageTag: !FindInMap [Service, Jobs, ImageTag]
+        ImageTag: !Ref JobsImageTag
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         MediaConvertPresetWav: !GetAtt JobsElementalStack.Outputs.MediaConvertPresetWav
         MediaConvertPresetStandardH264: !GetAtt JobsElementalStack.Outputs.MediaConvertPresetStandardH264
@@ -433,7 +471,7 @@ Resources:
         ContainerMemory: !FindInMap [Service, Keycloak, ContainerMemory]
         FrontendUrl: !Sub https://${LoadBalancerDomainName}/
         ImageRepoName: !FindInMap [Service, Keycloak, ImageRepoName]
-        ImageTag: !FindInMap [Service, Keycloak, ImageTag]
+        ImageTag: !Ref KeycloakImageTag
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         KeycloakSecret: !GetAtt KeycloakSecretStack.Outputs.KeycloakSecret
         BackendSecret: !GetAtt KeycloakSecretStack.Outputs.BackendSecret

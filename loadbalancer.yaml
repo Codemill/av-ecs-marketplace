@@ -10,9 +10,6 @@ Parameters:
   ApplicationTag:
     Type: String
     Description: Used to tag all resources
-  CertificateArn:
-    Type: String
-    Description: SSL certificate ARN in CertificateManager which covers the domain name used for the load balancer
   HostedZoneId:
     Type: String
     Description: Route53 Hosted Zone Id
@@ -70,7 +67,7 @@ Resources:
       Protocol: HTTPS
       SslPolicy: "ELBSecurityPolicy-2016-08"
       Certificates:
-        - CertificateArn: !Ref CertificateArn
+        - CertificateArn: !Ref Certificate
 
   AliasRecord:
     Type: AWS::Route53::RecordSet
@@ -81,6 +78,18 @@ Resources:
       HostedZoneId: !Ref HostedZoneId
       Name: !Ref LoadBalancerDomainName
       Type: A
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref LoadBalancerDomainName
+      DomainValidationOptions:
+        - DomainName: !Ref LoadBalancerDomainName
+          HostedZoneId: !Ref HostedZoneId
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+      ValidationMethod: DNS
 
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -101,6 +110,7 @@ Resources:
           Value: !Ref ApplicationTag
         - Key: Name
           Value: AccurateVideo - ALB SG
+
 
 
 Outputs:
