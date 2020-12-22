@@ -30,7 +30,6 @@ aws cloudformation update-stack \
   --parameters \
     ParameterKey=AdapterRdsDbClass,UsePreviousValue=true \
     ParameterKey=ApplicationTag,UsePreviousValue=true \
-    ParameterKey=CertificateArn,UsePreviousValue=true \
     ParameterKey=HostedZoneId,UsePreviousValue=true \
     ParameterKey=KeycloakRdsDbClass,UsePreviousValue=true \
     ParameterKey=LoadBalancerDomainName,UsePreviousValue=true \

@@ -30,14 +30,13 @@ aws cloudformation create-stack \
   --parameters \
     ParameterKey=AdapterRdsDbClass,ParameterValue="db.t3.small" \
     ParameterKey=ApplicationTag,ParameterValue="accurate-video-marketplace" \
-    ParameterKey=CertificateArn,ParameterValue="arn:aws:acm:eu-west-1:653767197116:certificate/181c55eb-e432-4467-890c-8bb14d7dc82d" \
     ParameterKey=HostedZoneId,ParameterValue="Z1GJM9SVODAIRX" \
     ParameterKey=KeycloakRdsDbClass,ParameterValue="db.t3.small" \
     ParameterKey=LoadBalancerDomainName,ParameterValue="marketplace.cmtest.se" \
     ParameterKey=LogsRetention,ParameterValue="14" \
-    ParameterKey=PrivateSubnets,ParameterValue=\"subnet-05c0229b5cf088800,subnet-01f037d667825a613\" \
-    ParameterKey=PublicSubnets,ParameterValue=\"subnet-0ff5e8f620dd581e8,subnet-0e6cb7ae43947e8f9\" \
-    ParameterKey=Vpc,ParameterValue="vpc-037991747cf701ea6" \
+    ParameterKey=PrivateSubnets,ParameterValue=\"subnet-0bc3b8d0a063848cd,subnet-051a9153b9e4b3c3d\" \
+    ParameterKey=PublicSubnets,ParameterValue=\"subnet-02261967f8d210269,subnet-03256aa80d6ef70f8\" \
+    ParameterKey=Vpc,ParameterValue="vpc-072963b73493d01b8" \
   --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
   --profile "${PROFILE}" \
   --region "${REGION}"
