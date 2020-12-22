@@ -22,27 +22,27 @@ Parameters:
     AllowedValues:
       - FARGATE
       - FARGATE_SPOT
-    Description: Capacity Provider, FARGATE_SPOT is ... #TODO
+    Description: Capacity Provider
   AdapterImageTag:
     Type: String
     Default: 4.5.3
-    Description: "" #TODO
+    Description: "Adapter image tag"
   AnalyzeImageTag:
     Type: String
     Default: 4.5.3
-    Description: "" #TODO
+    Description: "Analyze image tag"
   JobsImageTag:
     Type: String
     Default: 4.5.3
-    Description: "" #TODO
+    Description: "Jobs image tag"
   FrontendImageTag:
     Type: String
     Default: 4.5.3
-    Description: "" #TODO
+    Description: "Frontend image tag"
   KeycloakImageTag:
     Type: String
     Default: 4.5.3
-    Description: "" #TODO
+    Description: "Keycloak image tag"
   HostedZoneId:
     Type: AWS::Route53::HostedZone::Id
     Description: Route53 Hosted Zone Id
@@ -143,49 +143,44 @@ Metadata:
 Mappings:
   Service:
     Adapter:
-      CapacityProvider: !Ref CapacityProvider
-      ContainerCpu: 512
-      ContainerMemory: 1024
-      DesiredCount: 1
+      ContainerCpu: "512"
+      ContainerMemory: "1024"
+      DesiredCount: "1"
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
-      LoadbalancerListenerPriority: 2
+      LoadbalancerListenerPriority: "2"
       LoadbalancerListenerPath: "/api/*"
-      MultiAZ: false
-      RdsAllocatedStorage: 20
-      RdsMaxAllocatedStorage: 100
+      MultiAZ: "false"
+      RdsAllocatedStorage: "20"
+      RdsMaxAllocatedStorage: "100"
     Analyze:
-      CapacityProvider: !Ref CapacityProvider
-      ContainerCpu: 512
-      ContainerMemory: 1024
-      DesiredCount: 1
+      ContainerCpu: "512"
+      ContainerMemory: "1024"
+      DesiredCount: "1"
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
       LoadbalancerListenerPath: "/api/analyze/*"
-      LoadbalancerListenerPriority: 1
+      LoadbalancerListenerPriority: "1"
     Jobs:
-      CapacityProvider: !Ref CapacityProvider
-      ContainerCpu: 512
-      ContainerMemory: 1024
-      DesiredCount: 1
+      ContainerCpu: "512"
+      ContainerMemory: "1024"
+      DesiredCount: "1"
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
     Frontend:
-      CapacityProvider: !Ref CapacityProvider
-      ContainerCpu: 256
-      ContainerMemory: 512
-      DesiredCount: 1
+      ContainerCpu: "256"
+      ContainerMemory: "512"
+      DesiredCount: "1"
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
       LoadbalancerListenerPath: "*"
-      LoadbalancerListenerPriority: 4
+      LoadbalancerListenerPriority: "4"
     Keycloak:
-      CapacityProvider: !Ref CapacityProvider
-      ContainerCpu: 512
-      ContainerMemory: 1024
-      DesiredCount: 1
+      ContainerCpu: "512"
+      ContainerMemory: "1024"
+      DesiredCount: "1"
       ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-keycloak
       LoadbalancerListenerPath: "/auth*"
-      LoadbalancerListenerPriority: 3
-      MultiAZ: false
-      RdsAllocatedStorage: 20
-      RdsMaxAllocatedStorage: 21
+      LoadbalancerListenerPriority: "3"
+      MultiAZ: "false"
+      RdsAllocatedStorage: "20"
+      RdsMaxAllocatedStorage: "21"
   Common:
     CloudFormation:
       Bucket: https://s3-eu-north-1.amazonaws.com/av-marketplace-cf/latest
@@ -297,7 +292,7 @@ Resources:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
         AdapterSG: !GetAtt InfrastructureStack.Outputs.AdapterSecurityGroup
-        CapacityProvider: !FindInMap [Service, Adapter, CapacityProvider]
+        CapacityProvider: !Ref CapacityProvider
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
         DesiredCount: !FindInMap [Service, Adapter, DesiredCount]
         LoadbalancerListenerPath: !FindInMap [Service, Adapter, LoadbalancerListenerPath]
@@ -333,7 +328,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-        CapacityProvider: !FindInMap [Service, Frontend, CapacityProvider]
+        CapacityProvider: !Ref CapacityProvider
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
         DesiredCount: !FindInMap [Service, Frontend, DesiredCount]
         FrontendSG: !GetAtt InfrastructureStack.Outputs.FrontendSecurityGroup
@@ -370,7 +365,7 @@ Resources:
       Parameters:
         AnalyzeSG: !GetAtt InfrastructureStack.Outputs.AnalyzeSecurityGroup
         ApplicationTag: !Ref ApplicationTag
-        CapacityProvider: !FindInMap [Service, Analyze, CapacityProvider]
+        CapacityProvider: !Ref CapacityProvider
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
         LoadbalancerListenerPath: !FindInMap [Service, Analyze, LoadbalancerListenerPath]
         LoadbalancerListenerPriority: !FindInMap [Service, Analyze, LoadbalancerListenerPriority]
@@ -423,7 +418,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-        CapacityProvider: !FindInMap [Service, Jobs, CapacityProvider]
+        CapacityProvider: !Ref CapacityProvider
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
         DesiredCount: !FindInMap [Service, Jobs, DesiredCount]
         JobsSG: !GetAtt InfrastructureStack.Outputs.JobsSecurityGroup
@@ -488,7 +483,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-        CapacityProvider: !FindInMap [Service, Keycloak, CapacityProvider]
+        CapacityProvider: !Ref CapacityProvider
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
         DesiredCount: !FindInMap [Service, Keycloak, DesiredCount]
         KeycloakSG: !GetAtt InfrastructureStack.Outputs.KeycloakSecurityGroup

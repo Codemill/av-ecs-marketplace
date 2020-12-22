@@ -26,10 +26,16 @@ fi
 
 aws cloudformation create-stack \
   --stack-name ${STACK_NAME} \
-  --template-url https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation/main-marketplace.yaml \
+  --template-url https://s3-eu-north-1.amazonaws.com/av-marketplace-cf/latest/main.yaml \
   --parameters \
     ParameterKey=AdapterRdsDbClass,ParameterValue="db.t3.small" \
     ParameterKey=ApplicationTag,ParameterValue="accurate-video-marketplace" \
+    ParameterKey=CapacityProvider,ParameterValue="FARGATE_SPOT" \
+    ParameterKey=AdapterImageTag,ParameterValue="4.5.3" \
+    ParameterKey=AnalyzeImageTag,ParameterValue="4.5.3" \
+    ParameterKey=JobsImageTag,ParameterValue="4.5.3" \
+    ParameterKey=FrontendImageTag,ParameterValue="4.5.3" \
+    ParameterKey=KeycloakImageTag,ParameterValue="4.5.3" \
     ParameterKey=HostedZoneId,ParameterValue="Z1GJM9SVODAIRX" \
     ParameterKey=KeycloakRdsDbClass,ParameterValue="db.t3.small" \
     ParameterKey=LoadBalancerDomainName,ParameterValue="marketplace.cmtest.se" \

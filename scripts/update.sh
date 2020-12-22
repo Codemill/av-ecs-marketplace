@@ -26,10 +26,16 @@ fi
 
 aws cloudformation update-stack \
   --stack-name ${STACK_NAME} \
-  --template-url https://s3-eu-north-1.amazonaws.com/av-marketplace-cloudformation/main-marketplace.yaml \
+  --template-url https://s3-eu-north-1.amazonaws.com/av-marketplace-cf/latest/main.yaml \
   --parameters \
     ParameterKey=AdapterRdsDbClass,UsePreviousValue=true \
     ParameterKey=ApplicationTag,UsePreviousValue=true \
+    ParameterKey=CapacityProvider,UsePreviousValue=true \
+    ParameterKey=AdapterImageTag,UsePreviousValue=true \
+    ParameterKey=AnalyzeImageTag,UsePreviousValue=true \
+    ParameterKey=JobsImageTag,UsePreviousValue=true \
+    ParameterKey=FrontendImageTag,UsePreviousValue=true \
+    ParameterKey=KeycloakImageTag,UsePreviousValue=true \
     ParameterKey=HostedZoneId,UsePreviousValue=true \
     ParameterKey=KeycloakRdsDbClass,UsePreviousValue=true \
     ParameterKey=LoadBalancerDomainName,UsePreviousValue=true \
