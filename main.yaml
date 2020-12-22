@@ -23,6 +23,10 @@ Parameters:
       - FARGATE
       - FARGATE_SPOT
     Description: Capacity Provider
+  ContainerRegistry:
+    Type: String
+    Description: Container Registry
+    Default: 709825985650.dkr.ecr.us-east-1.amazonaws.com/codemill
   AdapterImageTag:
     Type: String
     Default: 4.5.3
@@ -146,7 +150,7 @@ Mappings:
       ContainerCpu: "512"
       ContainerMemory: "1024"
       DesiredCount: "1"
-      ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-adapter
+      ImageRepoName: accurate-video-adapter
       LoadbalancerListenerPriority: "2"
       LoadbalancerListenerPath: "/api/*"
       MultiAZ: "false"
@@ -156,26 +160,26 @@ Mappings:
       ContainerCpu: "512"
       ContainerMemory: "1024"
       DesiredCount: "1"
-      ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-analyze
+      ImageRepoName: accurate-video-analyze
       LoadbalancerListenerPath: "/api/analyze/*"
       LoadbalancerListenerPriority: "1"
     Jobs:
       ContainerCpu: "512"
       ContainerMemory: "1024"
       DesiredCount: "1"
-      ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-jobs
+      ImageRepoName: accurate-video-jobs
     Frontend:
       ContainerCpu: "256"
       ContainerMemory: "512"
       DesiredCount: "1"
-      ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-frontend
+      ImageRepoName: accurate-video-frontend
       LoadbalancerListenerPath: "*"
       LoadbalancerListenerPriority: "4"
     Keycloak:
       ContainerCpu: "512"
       ContainerMemory: "1024"
       DesiredCount: "1"
-      ImageRepoName: 107410575319.dkr.ecr.eu-north-1.amazonaws.com/accurate-video-keycloak
+      ImageRepoName: accurate-video-keycloak
       LoadbalancerListenerPath: "/auth*"
       LoadbalancerListenerPriority: "3"
       MultiAZ: "false"
@@ -271,7 +275,9 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         ContainerCpu: !FindInMap [Service, Adapter, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Adapter, ContainerMemory]
-        ImageRepoName: !FindInMap [Service, Adapter, ImageRepoName]
+        ImageRepoName: !Sub
+          - ${ContainerRegistry}/${Service}
+          - Service: !FindInMap [Service, Adapter, ImageRepoName]
         ImageTag: !Ref AdapterImageTag
         KeycloakBackendSecret: !GetAtt KeycloakSecretStack.Outputs.BackendSecret
         KeycloakHost: !Sub "https://${LoadBalancerDomainName}"
@@ -315,7 +321,9 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         ContainerCpu: !FindInMap [Service, Frontend, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Frontend, ContainerMemory]
-        ImageRepoName: !FindInMap [Service, Frontend, ImageRepoName]
+        ImageRepoName: !Sub
+          - ${ContainerRegistry}/${Service}
+          - Service: !FindInMap [Service, Frontend, ImageRepoName]
         ImageTag: !Ref FrontendImageTag
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
       TemplateURL: !Sub
@@ -351,7 +359,9 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         ContainerCpu: !FindInMap [Service, Analyze, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Analyze, ContainerMemory]
-        ImageRepoName: !FindInMap [Service, Analyze, ImageRepoName]
+        ImageRepoName: !Sub
+          - ${ContainerRegistry}/${Service}
+          - Service: !FindInMap [Service, Analyze, ImageRepoName]
         ImageTag: !Ref AnalyzeImageTag
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
       TemplateURL: !Sub
@@ -401,7 +411,9 @@ Resources:
         ContainerCpu: !FindInMap [Service, Jobs, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Jobs, ContainerMemory]
         ElementalRoleArn: !GetAtt JobsElementalStack.Outputs.ElementalRoleArn
-        ImageRepoName: !FindInMap [Service, Jobs, ImageRepoName]
+        ImageRepoName: !Sub
+          - ${ContainerRegistry}/${Service}
+          - Service: !FindInMap [Service, Jobs, ImageRepoName]
         ImageTag: !Ref JobsImageTag
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         MediaConvertPresetWav: !GetAtt JobsElementalStack.Outputs.MediaConvertPresetWav
@@ -465,7 +477,9 @@ Resources:
         ContainerCpu: !FindInMap [Service, Keycloak, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Keycloak, ContainerMemory]
         FrontendUrl: !Sub https://${LoadBalancerDomainName}/
-        ImageRepoName: !FindInMap [Service, Keycloak, ImageRepoName]
+        ImageRepoName: !Sub
+          - ${ContainerRegistry}/${Service}
+          - Service: !FindInMap [Service, Keycloak, ImageRepoName]
         ImageTag: !Ref KeycloakImageTag
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         KeycloakSecret: !GetAtt KeycloakSecretStack.Outputs.KeycloakSecret
