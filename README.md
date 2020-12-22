@@ -1,28 +1,29 @@
-# Accurate Video on AWS Marketplace
+# Accurate.Video Validate on AWS Marketplace
 
-## Step-by-step
+## Step-by-step instructions
 
-### Step 1: Subscribe on AWS Marketplace
+### Step 1: Subscribe
 
-TODO: Insert link button to product
+[Subscribe to Accurate.Video Validate](https://aws.amazon.com/marketplace/pp/B08R5F7FCJ/)
 
 ### Step 2: Setup HostedZone (optional)
 
-If you already have a Hosted Zone in Route53 that you want to use, skip to the next step.
+If you already have a hosted Zone in Route53 that you want to use, skip to the next step.
 
-[Create a Hosted Zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingHostedZone.html) with a valid domain name.
+[Register a domain](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register.html) and
+[create a hosted zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingHostedZone.html).
 
 ### Step 3: Create a new VPC (optional)
 
 If you already have a VPC that you want to re-use, skip the next step.
 
-Click the button below to create a new VPC:
+Create a new VPC:
 
 [<img src="docs/assets/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cf.s3.eu-north-1.amazonaws.com/latest/vpc.yaml)
 
-### Step 4: Launch the Accurate Video stacks
+### Step 4: Deploy
 
-Click the button below to create a new deployment:
+Create a new deployment:
 
 [<img src="docs/assets/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cf.s3.eu-north-1.amazonaws.com/latest/main.yaml)
 
