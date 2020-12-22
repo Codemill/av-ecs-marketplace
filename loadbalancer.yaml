@@ -76,7 +76,7 @@ Resources:
         DNSName: !GetAtt PublicLoadBalancer.DNSName
         HostedZoneId: !GetAtt PublicLoadBalancer.CanonicalHostedZoneID
       HostedZoneId: !Ref HostedZoneId
-      Name: !Ref LoadBalancerDomainName
+      Name: !Sub "${LoadBalancerDomainName}."
       Type: A
 
   Certificate:

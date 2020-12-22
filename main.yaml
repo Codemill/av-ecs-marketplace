@@ -58,7 +58,7 @@ Parameters:
   LoadBalancerDomainName:
     Type: String
     Description: Full domain name that will be given to the load balancer (e.g. av.example.com)
-    AllowedPattern: "\\b((?=[a-z0-9-]{1,63}\\.)[a-z0-9]+(-[a-z0-9]+)*\\.)+[a-z]{2,63}\\b"
+    AllowedPattern: "^(\\*\\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$"
     ConstraintDescription: must be a valid domain name (e.g. av.example.com)
   LogsRetention:
     Type: Number
@@ -194,7 +194,7 @@ Resources:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
         HostedZoneId: !Ref HostedZoneId
-        LoadBalancerDomainName: !Sub "${LoadBalancerDomainName}."
+        LoadBalancerDomainName: !Ref LoadBalancerDomainName
         PublicSubnets: !Join [",", !Ref PublicSubnets]
         Vpc: !Ref Vpc
       TemplateURL: !Sub

@@ -18,13 +18,13 @@ If you already have a VPC that you want to re-use, skip the next step.
 
 Click the button below to create a new VPC:
 
-[<img src="docs/assets/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cloudformation.s3.eu-north-1.amazonaws.com/vpc.yaml)
+[<img src="docs/assets/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cf.s3.eu-north-1.amazonaws.com/latest/vpc.yaml)
 
 ### Step 4: Launch the Accurate Video stacks
 
 Click the button below to create a new deployment:
 
-[<img src="docs/assets/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cloudformation.s3.eu-north-1.amazonaws.com/main.yaml)
+[<img src="docs/assets/cloudformation-launch-stack.png">](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://av-marketplace-cf.s3.eu-north-1.amazonaws.com/latest/main.yaml)
 
 ### Uninstall
 
