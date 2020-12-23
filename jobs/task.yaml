@@ -156,6 +156,10 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action:
+                  - mediaconvert:DescribeEndpoints
+                Resource: "*"
+              - Effect: Allow
+                Action:
                   - sts:PassRole
                 Resource:
                   - !Ref ElementalRoleArn
