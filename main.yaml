@@ -59,9 +59,9 @@ Parameters:
       - db.t3.large
       - db.m5.large
     Description: The RDS Database class to use
-  LoadBalancerDomainName:
+  DomainName:
     Type: String
-    Description: Full domain name that will be given to the load balancer (e.g. av.example.com)
+    Description: Full domain name that will be given to the Accurate.Video Validate application (e.g. av.example.com)
     AllowedPattern: "^(\\*\\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$"
     ConstraintDescription: must be a valid domain name (e.g. av.example.com)
   LogsRetention:
@@ -91,7 +91,7 @@ Metadata:
           default: DNS
         Parameters:
           - HostedZoneId
-          - LoadBalancerDomainName
+          - DomainName
       - Label:
           default: Docker Images
         Parameters:
@@ -133,8 +133,8 @@ Metadata:
         default: HostedZone ID
       KeycloakRdsDbClass:
         default: Keycloak Database Class
-      LoadBalancerDomainName:
-        default: Load Balancer Domain Name
+      DomainName:
+        default: Domain Name
       LogsRetention:
         default: Application Logs Retention
       PrivateSubnets:
@@ -198,7 +198,7 @@ Resources:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
         HostedZoneId: !Ref HostedZoneId
-        LoadBalancerDomainName: !Ref LoadBalancerDomainName
+        LoadBalancerDomainName: !Ref DomainName
         PublicSubnets: !Join [",", !Ref PublicSubnets]
         Vpc: !Ref Vpc
       TemplateURL: !Sub
@@ -280,7 +280,7 @@ Resources:
           - Service: !FindInMap [Service, Adapter, ImageRepoName]
         ImageTag: !Ref AdapterImageTag
         KeycloakBackendSecret: !GetAtt KeycloakSecretStack.Outputs.BackendSecret
-        KeycloakHost: !Sub "https://${LoadBalancerDomainName}"
+        KeycloakHost: !Sub "https://${DomainName}"
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         AuthRunnerSecret: !GetAtt AdapterSecretStack.Outputs.AuthRunnerSecretArn
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
@@ -476,7 +476,7 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         ContainerCpu: !FindInMap [Service, Keycloak, ContainerCpu]
         ContainerMemory: !FindInMap [Service, Keycloak, ContainerMemory]
-        FrontendUrl: !Sub https://${LoadBalancerDomainName}/
+        FrontendUrl: !Sub https://${DomainName}/
         ImageRepoName: !Sub
           - ${ContainerRegistry}/${Service}
           - Service: !FindInMap [Service, Keycloak, ImageRepoName]
@@ -511,3 +511,11 @@ Resources:
         - ${TemplatesS3Bucket}/keycloak/service.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
+
+Outputs:
+  ApplicationURL:
+    Description: Application URL
+    Value: !Sub https://${DomainName}
+  UserAdminURL:
+    Description: User Admin URL
+    Value: !Sub https://${DomainName}/auth
