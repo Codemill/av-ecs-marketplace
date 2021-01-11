@@ -89,6 +89,8 @@ Resources:
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
+        - Key: Name
+          Value: AccurateVideo - ALB Certificate
       ValidationMethod: DNS
 
   SecurityGroup:

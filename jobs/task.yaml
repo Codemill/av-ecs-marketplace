@@ -72,6 +72,8 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: av-jobs
           Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
             - Name: AV_RUNNER_LOWRES_TEMPLATE_ID
               Value: !Ref MediaConvertPresetWav
             - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID
