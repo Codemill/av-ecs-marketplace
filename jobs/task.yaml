@@ -159,10 +159,13 @@ Resources:
               - Effect: Allow
                 Action:
                   - mediaconvert:DescribeEndpoints
+                  - mediaconvert:GetPreset
+                  - mediaconvert:CreateJob
+                  - mediaconvert:GetJob
                 Resource: "*"
               - Effect: Allow
                 Action:
-                  - sts:PassRole
+                  - iam:PassRole
                 Resource:
                   - !Ref ElementalRoleArn
       Tags:
