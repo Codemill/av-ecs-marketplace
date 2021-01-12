@@ -23,7 +23,7 @@ Resources:
       CorsConfiguration:
         CorsRules:
           - AllowedHeaders:
-            - "*"
+              - "*"
             AllowedMethods:
               - GET
               - HEAD
