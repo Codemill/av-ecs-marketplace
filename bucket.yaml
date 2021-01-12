@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Content bucket template
+Parameters:
+  ApplicationTag:
+    Type: String
+    Default: accurate-video
+    Description: Used to tag all resources
+  BucketName:
+    Type: String
+    Description: Name of the bucket
+  DomainName:
+    Type: String
+    Description: Domain name which is allowed to fetch objects
+Resources:
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName: !Ref BucketName
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+            - "*"
+            AllowedMethods:
+              - GET
+              - HEAD
+            AllowedOrigins:
+              - !Sub https://${DomainName}
+            ExposedHeaders:
+              - Content-Range
+            MaxAge: 3000
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+      VersioningConfiguration:
+        Status: Suspended
+  Policy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Bucket
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource: !Sub "${Bucket.Arn}/*"
+            Principal: '*'
