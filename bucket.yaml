@@ -37,13 +37,3 @@ Resources:
           Value: !Ref ApplicationTag
       VersioningConfiguration:
         Status: Suspended
-  Policy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref Bucket
-      PolicyDocument:
-        Statement:
-          - Action: s3:GetObject
-            Effect: Allow
-            Resource: !Sub "${Bucket.Arn}/*"
-            Principal: '*'
