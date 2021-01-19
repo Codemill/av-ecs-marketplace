@@ -15,7 +15,7 @@ If you already have a hosted Zone in Route53 that you want to use, skip to the n
 
 ### Step 3: Create a new VPC (optional)
 
-If you already have a VPC that you want to re-use, skip the next step.
+If you already have a VPC that you want to re-use, skip to the next step.
 
 Create a new VPC:
 
