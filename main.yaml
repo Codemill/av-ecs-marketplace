@@ -30,23 +30,83 @@ Parameters:
   AdapterImageTag:
     Type: String
     Default: 4.5.3
-    Description: "Adapter image tag"
+    Description: "Image tag"
+  AdapterContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  AdapterContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  AdapterDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
   AnalyzeImageTag:
     Type: String
     Default: 4.5.3
-    Description: "Analyze image tag"
+    Description: "Image tag"
+  AnalyzeContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  AnalyzeContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  AnalyzeDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
   JobsImageTag:
     Type: String
     Default: 4.5.3
-    Description: "Jobs image tag"
+    Description: "Image tag"
+  JobsContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  JobsContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  JobsDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
   FrontendImageTag:
     Type: String
     Default: 4.5.3
-    Description: "Frontend image tag"
+    Description: "Image tag"
+  FrontendContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  FrontendContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  FrontendDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
   KeycloakImageTag:
     Type: String
     Default: 4.5.3
-    Description: "Keycloak image tag"
+    Description: "Image tag"
+  KeycloakContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  KeycloakContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  KeycloakDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
   HostedZoneId:
     Type: AWS::Route53::HostedZone::Id
     Description: Route53 Hosted Zone Id
@@ -97,9 +157,27 @@ Metadata:
         Parameters:
           - AdapterImageTag
           - AnalyzeImageTag
-          - JobsImageTag
           - FrontendImageTag
+          - JobsImageTag
           - KeycloakImageTag
+      - Label:
+          default: Resources
+        Parameters:
+          - AdapterContainerCpu
+          - AdapterContainerMemory
+          - AdapterDesiredCount
+          - AnalyzeContainerCpu
+          - AnalyzeContainerMemory
+          - AnalyzeDesiredCount
+          - FrontendContainerCpu
+          - FrontendContainerMemory
+          - FrontendDesiredCount
+          - JobsContainerCpu
+          - JobsContainerMemory
+          - JobsDesiredCount
+          - KeycloakContainerCpu
+          - KeycloakContainerMemory
+          - KeycloakDesiredCount
       - Label:
           default: Database
         Parameters:
@@ -127,6 +205,36 @@ Metadata:
         default: Frontend Image Tag
       KeycloakImageTag:
         default: Keycloak Image Tag
+      AdapterContainerCpu:
+        default: Adapter Container CPU
+      AdapterContainerMemory:
+        default: Adapter Container memory
+      AdapterDesiredCount:
+        default: Adapter Desired Count
+      AnalyzeContainerCpu:
+        default: Analyze Container Cpu
+      AnalyzeContainerMemory:
+        default: Analyze Container Memory
+      AnalyzeDesiredCount:
+        default: Analyze Desired Count
+      FrontendContainerCpu:
+        default: Frontend Container Cpu
+      FrontendContainerMemory:
+        default: Frontend Container Memory
+      FrontendDesiredCount:
+        default: Frontend Desired Count
+      JobsContainerCpu:
+        default: Jobs Container Cpu
+      JobsContainerMemory:
+        default: Jobs Container Memory
+      JobsDesiredCount:
+        default: Jobs Desired Count
+      KeycloakContainerCpu:
+        default: Keycloak Container Cpu
+      KeycloakContainerMemory:
+        default: Keycloak Container Memory
+      KeycloakDesiredCount:
+        default: Keycloak Desired Count
       CapacityProvider:
         default: Capacity Provider
       HostedZoneId:
@@ -147,9 +255,6 @@ Metadata:
 Mappings:
   Service:
     Adapter:
-      ContainerCpu: "512"
-      ContainerMemory: "1024"
-      DesiredCount: "1"
       ImageRepoName: accurate-video-adapter
       LoadbalancerListenerPriority: "2"
       LoadbalancerListenerPath: "/api/*"
@@ -157,28 +262,16 @@ Mappings:
       RdsAllocatedStorage: "20"
       RdsMaxAllocatedStorage: "100"
     Analyze:
-      ContainerCpu: "512"
-      ContainerMemory: "1024"
-      DesiredCount: "1"
       ImageRepoName: accurate-video-analyze
       LoadbalancerListenerPath: "/api/analyze/*"
       LoadbalancerListenerPriority: "1"
-    Jobs:
-      ContainerCpu: "512"
-      ContainerMemory: "1024"
-      DesiredCount: "1"
-      ImageRepoName: accurate-video-jobs
     Frontend:
-      ContainerCpu: "256"
-      ContainerMemory: "512"
-      DesiredCount: "1"
       ImageRepoName: accurate-video-frontend
       LoadbalancerListenerPath: "*"
       LoadbalancerListenerPriority: "4"
+    Jobs:
+      ImageRepoName: accurate-video-jobs
     Keycloak:
-      ContainerCpu: "512"
-      ContainerMemory: "1024"
-      DesiredCount: "1"
       ImageRepoName: accurate-video-keycloak
       LoadbalancerListenerPath: "/auth*"
       LoadbalancerListenerPriority: "3"
@@ -273,8 +366,8 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-        ContainerCpu: !FindInMap [Service, Adapter, ContainerCpu]
-        ContainerMemory: !FindInMap [Service, Adapter, ContainerMemory]
+        ContainerCpu: !Ref AdapterContainerCpu
+        ContainerMemory: !Ref AdapterContainerMemory
         ImageRepoName: !Sub
           - ${ContainerRegistry}/${Service}
           - Service: !FindInMap [Service, Adapter, ImageRepoName]
@@ -300,7 +393,7 @@ Resources:
         AdapterSG: !GetAtt InfrastructureStack.Outputs.AdapterSecurityGroup
         CapacityProvider: !Ref CapacityProvider
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
-        DesiredCount: !FindInMap [Service, Adapter, DesiredCount]
+        DesiredCount: !Ref AdapterDesiredCount
         LoadbalancerListenerPath: !FindInMap [Service, Adapter, LoadbalancerListenerPath]
         LoadbalancerListenerPriority: !FindInMap [Service, Adapter, LoadbalancerListenerPriority]
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
@@ -313,52 +406,14 @@ Resources:
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
 
-  ############ Frontend ############
-  FrontendTaskStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Parameters:
-        ApplicationTag: !Ref ApplicationTag
-        ContainerCpu: !FindInMap [Service, Frontend, ContainerCpu]
-        ContainerMemory: !FindInMap [Service, Frontend, ContainerMemory]
-        ImageRepoName: !Sub
-          - ${ContainerRegistry}/${Service}
-          - Service: !FindInMap [Service, Frontend, ImageRepoName]
-        ImageTag: !Ref FrontendImageTag
-        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
-      TemplateURL: !Sub
-        - ${TemplatesS3Bucket}/frontend/task.yaml
-        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
-      TimeoutInMinutes: 30
-
-  FrontendServiceStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Parameters:
-        ApplicationTag: !Ref ApplicationTag
-        CapacityProvider: !Ref CapacityProvider
-        ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
-        DesiredCount: !FindInMap [Service, Frontend, DesiredCount]
-        FrontendSG: !GetAtt InfrastructureStack.Outputs.FrontendSecurityGroup
-        LoadbalancerListenerPath: !FindInMap [Service, Frontend, LoadbalancerListenerPath]
-        LoadbalancerListenerPriority: !FindInMap [Service, Frontend, LoadbalancerListenerPriority]
-        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
-        PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
-        TaskDefinition: !GetAtt FrontendTaskStack.Outputs.TaskDefinition
-        Vpc: !Ref Vpc
-      TemplateURL: !Sub
-        - ${TemplatesS3Bucket}/frontend/service.yaml
-        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
-      TimeoutInMinutes: 30
-
   ############ Analyze ############
   AnalyzeTaskStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-        ContainerCpu: !FindInMap [Service, Analyze, ContainerCpu]
-        ContainerMemory: !FindInMap [Service, Analyze, ContainerMemory]
+        ContainerCpu: !Ref AnalyzeContainerCpu
+        ContainerMemory: !Ref AnalyzeContainerMemory
         ImageRepoName: !Sub
           - ${ContainerRegistry}/${Service}
           - Service: !FindInMap [Service, Analyze, ImageRepoName]
@@ -379,7 +434,7 @@ Resources:
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
         LoadbalancerListenerPath: !FindInMap [Service, Analyze, LoadbalancerListenerPath]
         LoadbalancerListenerPriority: !FindInMap [Service, Analyze, LoadbalancerListenerPriority]
-        DesiredCount: !FindInMap [Service, Analyze, DesiredCount]
+        DesiredCount: !Ref AnalyzeDesiredCount
         TaskDefinition: !GetAtt AnalyzeTaskStack.Outputs.TaskDefinition
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
@@ -388,6 +443,45 @@ Resources:
         - ${TemplatesS3Bucket}/analyze/service.yaml
         - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
       TimeoutInMinutes: 30
+
+  ############ Frontend ############
+  FrontendTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        ContainerCpu: !Ref FrontendContainerCpu
+        ContainerMemory: !Ref FrontendContainerMemory
+        ImageRepoName: !Sub
+          - ${ContainerRegistry}/${Service}
+          - Service: !FindInMap [Service, Frontend, ImageRepoName]
+        ImageTag: !Ref FrontendImageTag
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/frontend/task.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
+  FrontendServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !Ref CapacityProvider
+        ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
+        DesiredCount: !Ref FrontendDesiredCount
+        FrontendSG: !GetAtt InfrastructureStack.Outputs.FrontendSecurityGroup
+        LoadbalancerListenerPath: !FindInMap [Service, Frontend, LoadbalancerListenerPath]
+        LoadbalancerListenerPriority: !FindInMap [Service, Frontend, LoadbalancerListenerPriority]
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
+        PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
+        TaskDefinition: !GetAtt FrontendTaskStack.Outputs.TaskDefinition
+        Vpc: !Ref Vpc
+      TemplateURL: !Sub
+        - ${TemplatesS3Bucket}/frontend/service.yaml
+        - TemplatesS3Bucket: !FindInMap [Common, CloudFormation, Bucket]
+      TimeoutInMinutes: 30
+
 
   ############ Jobs ############
   JobsElementalStack:
@@ -408,8 +502,8 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         AuthRunnerSecretArn: !GetAtt AdapterSecretStack.Outputs.AuthRunnerSecretArn
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
-        ContainerCpu: !FindInMap [Service, Jobs, ContainerCpu]
-        ContainerMemory: !FindInMap [Service, Jobs, ContainerMemory]
+        ContainerCpu: !Ref JobsContainerCpu
+        ContainerMemory: !Ref JobsContainerMemory
         ElementalRoleArn: !GetAtt JobsElementalStack.Outputs.ElementalRoleArn
         ImageRepoName: !Sub
           - ${ContainerRegistry}/${Service}
@@ -432,7 +526,7 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         CapacityProvider: !Ref CapacityProvider
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
-        DesiredCount: !FindInMap [Service, Jobs, DesiredCount]
+        DesiredCount: !Ref JobsDesiredCount
         JobsSG: !GetAtt InfrastructureStack.Outputs.JobsSecurityGroup
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
@@ -474,8 +568,8 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-        ContainerCpu: !FindInMap [Service, Keycloak, ContainerCpu]
-        ContainerMemory: !FindInMap [Service, Keycloak, ContainerMemory]
+        ContainerCpu: !Ref KeycloakContainerCpu
+        ContainerMemory: !Ref KeycloakContainerMemory
         FrontendUrl: !Sub https://${DomainName}/
         ImageRepoName: !Sub
           - ${ContainerRegistry}/${Service}
@@ -499,7 +593,7 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         CapacityProvider: !Ref CapacityProvider
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
-        DesiredCount: !FindInMap [Service, Keycloak, DesiredCount]
+        DesiredCount: !Ref KeycloakDesiredCount
         KeycloakSG: !GetAtt InfrastructureStack.Outputs.KeycloakSecurityGroup
         LoadbalancerListenerPriority: !FindInMap [Service, Keycloak, LoadbalancerListenerPriority]
         LoadbalancerListenerPath: !FindInMap [Service, Keycloak, LoadbalancerListenerPath]
