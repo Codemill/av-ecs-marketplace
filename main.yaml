@@ -30,23 +30,83 @@ Parameters:
   AdapterImageTag:
     Type: String
     Default: 4.5.3
-    Description: "Adapter image tag"
+    Description: "Image tag"
+  AdapterContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  AdapterContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  AdapterDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
   AnalyzeImageTag:
     Type: String
     Default: 4.5.3
-    Description: "Analyze image tag"
+    Description: "Image tag"
+  AnalyzeContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  AnalyzeContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  AnalyzeDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
   JobsImageTag:
     Type: String
     Default: 4.5.3
-    Description: "Jobs image tag"
+    Description: "Image tag"
+  JobsContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  JobsContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  JobsDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
   FrontendImageTag:
     Type: String
     Default: 4.5.3
-    Description: "Frontend image tag"
+    Description: "Image tag"
+  FrontendContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  FrontendContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  FrontendDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
   KeycloakImageTag:
     Type: String
     Default: 4.5.3
-    Description: "Keycloak image tag"
+    Description: "Image tag"
+  KeycloakContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  KeycloakContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  KeycloakDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
   HostedZoneId:
     Type: AWS::Route53::HostedZone::Id
     Description: Route53 Hosted Zone Id
@@ -97,9 +157,27 @@ Metadata:
         Parameters:
           - AdapterImageTag
           - AnalyzeImageTag
-          - JobsImageTag
           - FrontendImageTag
+          - JobsImageTag
           - KeycloakImageTag
+      - Label:
+          default: Resources
+        Parameters:
+          - AdapterContainerCpu
+          - AdapterContainerMemory
+          - AdapterDesiredCount
+          - AnalyzeContainerCpu
+          - AnalyzeContainerMemory
+          - AnalyzeDesiredCount
+          - FrontendContainerCpu
+          - FrontendContainerMemory
+          - FrontendDesiredCount
+          - JobsContainerCpu
+          - JobsContainerMemory
+          - JobsDesiredCount
+          - KeycloakContainerCpu
+          - KeycloakContainerMemory
+          - KeycloakDesiredCount
       - Label:
           default: Database
         Parameters:
@@ -127,6 +205,36 @@ Metadata:
         default: Frontend Image Tag
       KeycloakImageTag:
         default: Keycloak Image Tag
+      AdapterContainerCpu:
+        default: Adapter Container CPU
+      AdapterContainerMemory:
+        default: Adapter Container memory
+      AdapterDesiredCount:
+        default: Adapter Desired Count
+      AnalyzeContainerCpu:
+        default: Analyze Container Cpu
+      AnalyzeContainerMemory:
+        default: Analyze Container Memory
+      AnalyzeDesiredCount:
+        default: Analyze Desired Count
+      FrontendContainerCpu:
+        default: Frontend Container Cpu
+      FrontendContainerMemory:
+        default: Frontend Container Memory
+      FrontendDesiredCount:
+        default: Frontend Desired Count
+      JobsContainerCpu:
+        default: Jobs Container Cpu
+      JobsContainerMemory:
+        default: Jobs Container Memory
+      JobsDesiredCount:
+        default: Jobs Desired Count
+      KeycloakContainerCpu:
+        default: Keycloak Container Cpu
+      KeycloakContainerMemory:
+        default: Keycloak Container Memory
+      KeycloakDesiredCount:
+        default: Keycloak Desired Count
       CapacityProvider:
         default: Capacity Provider
       HostedZoneId:
