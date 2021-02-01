@@ -43,7 +43,6 @@ Parameters:
     Description: VPC CIDR Block
 
 Resources:
-
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:

@@ -75,9 +75,9 @@ Resources:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
             - Name: AV_RUNNER_LOWRES_TEMPLATE_ID
-              Value: !Ref MediaConvertPresetWav
-            - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID
               Value: !Ref MediaConvertPresetStandardH264
+            - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID
+              Value: !Ref MediaConvertPresetWav
             - Name: AP_ADAPTER_HOST
               Value: !Sub http://${AdapterServiceName}.${PrivateHostedZoneName}:8080
             - Name: ELEMENTAL_AWS_ROLE
