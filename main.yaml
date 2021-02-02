@@ -29,7 +29,7 @@ Parameters:
     Default: 709825985650.dkr.ecr.us-east-1.amazonaws.com/codemill
   AdapterImageTag:
     Type: String
-    Default: 4.5.3
+    Default: 4.6.1
     Description: "Image tag"
   AdapterContainerCpu:
     Type: String
@@ -45,7 +45,7 @@ Parameters:
     Description: "Desired task count"
   AnalyzeImageTag:
     Type: String
-    Default: 4.5.3
+    Default: 4.6.1
     Description: "Image tag"
   AnalyzeContainerCpu:
     Type: String
@@ -61,7 +61,7 @@ Parameters:
     Description: "Desired task count"
   JobsImageTag:
     Type: String
-    Default: 4.5.3
+    Default: 4.6.1
     Description: "Image tag"
   JobsContainerCpu:
     Type: String
@@ -77,7 +77,7 @@ Parameters:
     Description: "Desired task count"
   FrontendImageTag:
     Type: String
-    Default: 4.5.3
+    Default: 4.6.1
     Description: "Image tag"
   FrontendContainerCpu:
     Type: String
@@ -93,7 +93,7 @@ Parameters:
     Description: "Desired task count"
   KeycloakImageTag:
     Type: String
-    Default: 4.5.3
+    Default: 4.6.1
     Description: "Image tag"
   KeycloakContainerCpu:
     Type: String
