@@ -156,6 +156,7 @@ Resources:
                   - rekognition:StartSegmentDetection
                   - rekognition:GetSegmentDetection
                   - rekognition:StartContentModeration
+                  - rekognition:StartCelebrityRecognition
                 Resource: "*"
               - Effect: Allow
                 Action:
