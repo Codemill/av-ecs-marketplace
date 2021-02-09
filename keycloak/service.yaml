@@ -73,7 +73,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       HealthCheckIntervalSeconds: 90
-      HealthCheckPath: /auth/realms/master
+      HealthCheckPath: /auth/realms/accurate-video
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 2
       HealthyThresholdCount: 2
