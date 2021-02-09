@@ -155,6 +155,7 @@ Resources:
                 Action:
                   - rekognition:StartSegmentDetection
                   - rekognition:GetSegmentDetection
+                  - rekognition:StartContentModeration
                 Resource: "*"
               - Effect: Allow
                 Action:
