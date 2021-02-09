@@ -153,7 +153,15 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action:
+                  - rekognition:GetCelebrityInfo
+                  - rekognition:GetCelebrityRecognition
+                  - rekognition:GetContentModeration
+                  - rekognition:GetFaceDetection
+                  - rekognition:GetFaceSearch
+                  - rekognition:GetLabelDetection
+                  - rekognition:GetPersonTracking
                   - rekognition:GetSegmentDetection
+                  - rekognition:GetTextDetection
                   - rekognition:StartCelebrityRecognition
                   - rekognition:StartContentModeration
                   - rekognition:StartFaceDetection
