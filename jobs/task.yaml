@@ -153,11 +153,16 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action:
-                  - rekognition:StartSegmentDetection
                   - rekognition:GetSegmentDetection
-                  - rekognition:StartContentModeration
                   - rekognition:StartCelebrityRecognition
+                  - rekognition:StartContentModeration
+                  - rekognition:StartFaceDetection
+                  - rekognition:StartFaceSearch
                   - rekognition:StartLabelDetection
+                  - rekognition:StartPersonTracking
+                  - rekognition:StartProjectVersion
+                  - rekognition:StartSegmentDetection
+                  - rekognition:StartTextDetection
                 Resource: "*"
               - Effect: Allow
                 Action:
