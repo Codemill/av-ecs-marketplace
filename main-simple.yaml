@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Main template which will deploy infrastructure and services as nested stacks.
+
+Parameters:
+  AdapterImageTag:
+    Type: String
+    Default: 4.6.1
+    Description: "Image tag"
+  AnalyzeImageTag:
+    Type: String
+    Default: 4.6.1
+    Description: "Image tag"
+  CloudFormationTemplatesBucket:
+    Type: String
+    Default: https://s3-eu-north-1.amazonaws.com/av-marketplace-cf/latest
+    Description: "Bucket containing CF templates"
+  JobsImageTag:
+    Type: String
+    Default: 4.6.1
+    Description: "Image tag"
+  FrontendImageTag:
+    Type: String
+    Default: 4.6.1
+    Description: "Image tag"
+  KeycloakImageTag:
+    Type: String
+    Default: 4.6.1
+    Description: "Image tag"
+  PrivateSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The Private Subnets which the ECS Services and RDS Database will be deployed in (At least two)
+  PublicSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The Public Subnets which the Application Load Balancer will be deployed in (At least two)
+  Vpc:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC which AccurateVideo will be deployed in
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network
+        Parameters:
+          - Vpc
+          - PrivateSubnets
+          - PublicSubnets
+      - Label:
+          default: Docker Images
+        Parameters:
+          - AdapterImageTag
+          - AnalyzeImageTag
+          - FrontendImageTag
+          - JobsImageTag
+          - KeycloakImageTag
+
+    ParameterLabels:
+      AdapterImageTag:
+        default: Adapter Image Tag
+      AnalyzeImageTag:
+        default: Analyze Image Tag
+      JobsImageTag:
+        default: Jobs Image Tag
+      FrontendImageTag:
+        default: Frontend Image Tag
+      KeycloakImageTag:
+        default: Keycloak Image Tag
+      PrivateSubnets:
+        default: Private Subnets
+      PublicSubnets:
+        default: Public Subnets
+      Vpc:
+        default: VPC ID
+
+Resources:
+  MainStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AdapterContainerCpu: 512
+        AdapterContainerMemory: 1024
+        AdapterDbAllocatedStorage: 20
+        AdapterDbClass: db.t3.small
+        AdapterDbMaxAllocatedStorage: 20
+        AdapterDbMultiAZ: false
+        AdapterDesiredCount: 1
+        AdapterImageTag: !Ref AdapterImageTag
+        AnalyzeContainerCpu: 512
+        AnalyzeContainerMemory: 1024
+        AnalyzeDesiredCount: 1
+        AnalyzeImageTag: !Ref AnalyzeImageTag
+        ApplicationTag: accurate-video
+        CapacityProvider: FARGATE_SPOT
+        CloudFormationTemplatesBucket: !Ref CloudFormationTemplatesBucket
+        ContainerRegistry: 709825985650.dkr.ecr.us-east-1.amazonaws.com/codemill
+        DomainName: ""
+        FrontendContainerCpu: 512
+        FrontendContainerMemory: 1024
+        FrontendDesiredCount: 1
+        FrontendImageTag: !Ref FrontendImageTag
+        HostedZoneId: ""
+        JobsContainerCpu: 512
+        JobsContainerMemory: 1024
+        JobsDesiredCount: 1
+        JobsImageTag: !Ref JobsImageTag
+        KeycloakContainerCpu: 512
+        KeycloakContainerMemory: 1024
+        KeycloakDbAllocatedStorage: 20
+        KeycloakDbClass: db.t3.small
+        KeycloakDbMaxAllocatedStorage: 20
+        KeycloakDbMultiAZ: false
+        KeycloakDesiredCount: 1
+        KeycloakImageTag: !Ref KeycloakImageTag
+        LogsRetention: 7
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
+        PublicSubnets: !Join [",", !Ref PublicSubnets]
+        Vpc: !Ref Vpc
+      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/base.yaml
+      TimeoutInMinutes: 30
