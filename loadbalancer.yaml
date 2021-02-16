@@ -19,6 +19,14 @@ Parameters:
     Type: String
     Description: VPC ID
 
+Conditions:
+  UseDefaultDomain:
+    !And
+      - !Equals [!Ref HostedZoneId, ""]
+      - !Equals [!Ref DomainName, ""]
+  CreateCustomDomain:
+    !Not [Condition: UseDefaultDomain]
+
 Resources:
   PublicLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -37,20 +45,28 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
-        - RedirectConfig:
-            Host: "#{host}"
-            Path: "/#{path}"
-            Port: "443"
-            Protocol: HTTPS
-            Query: "#{query}"
-            StatusCode: HTTP_301
-          Type: redirect
+        - !If
+          - UseDefaultDomain
+          - FixedResponseConfig:
+              ContentType: text/plain
+              MessageBody: "Not implemented"
+              StatusCode: "200"
+            Type: fixed-response
+          - RedirectConfig:
+              Host: "#{host}"
+              Path: "/#{path}"
+              Port: "443"
+              Protocol: HTTPS
+              Query: "#{query}"
+              StatusCode: HTTP_301
+            Type: redirect
       LoadBalancerArn: !Ref PublicLoadBalancer
       Port: 80
       Protocol: HTTP
 
   PublicLoadBalancerListenerHttps:
     Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: CreateCustomDomain
     Properties:
       DefaultActions:
         - FixedResponseConfig:
@@ -67,6 +83,7 @@ Resources:
 
   AliasRecord:
     Type: AWS::Route53::RecordSet
+    Condition: CreateCustomDomain
     Properties:
       AliasTarget:
         DNSName: !GetAtt PublicLoadBalancer.DNSName
@@ -77,6 +94,7 @@ Resources:
 
   Certificate:
     Type: AWS::CertificateManager::Certificate
+    Condition: CreateCustomDomain
     Properties:
       DomainName: !Ref DomainName
       DomainValidationOptions:
@@ -109,14 +127,19 @@ Resources:
         - Key: Name
           Value: AccurateVideo - ALB SG
 
-
 Outputs:
   ExternalUrl:
     Description: The url of the external load balancer
-    Value: !Sub http://${PublicLoadBalancer.DNSName}
+    Value: !If
+      - CreateCustomDomain
+      - !Sub https://${DomainName}
+      - !Sub http://${PublicLoadBalancer.DNSName}
   PublicListener:
     Description: The ARN of the public load balancer's Listener
-    Value: !Ref PublicLoadBalancerListenerHttps
+    Value: !If
+      - CreateCustomDomain
+      - !Ref PublicLoadBalancerListenerHttps
+      - !Ref PublicLoadBalancerListenerHttp
   SecurityGroup:
     Description: The SecurityGroup attached to the public load balancer
     Value: !Ref SecurityGroup
