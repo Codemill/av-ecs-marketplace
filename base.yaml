@@ -12,9 +12,6 @@ Parameters:
       - FARGATE
       - FARGATE_SPOT
     Description: Capacity Provider
-  CloudFormationTemplatesBucket:
-    Type: String
-    Description: Bucket containing CF templates
   ContainerRegistry:
     Type: String
     Description: Container Registry
@@ -165,7 +162,7 @@ Resources:
         DomainName: !Ref DomainName
         PublicSubnets: !Ref PublicSubnets
         Vpc: !Ref Vpc
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/loadbalancer.yaml
+      TemplateURL: loadbalancer.yaml
       TimeoutInMinutes: 30
 
   ClusterStack:
@@ -173,7 +170,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/cluster.yaml
+      TemplateURL: cluster.yaml
       TimeoutInMinutes: 30
 
   InfrastructureStack:
@@ -185,7 +182,7 @@ Resources:
         PrivateHostedZoneName: !FindInMap [Common, DNS, PrivateHostedZoneName]
         PublicLoadBalancerSecurityGroup: !GetAtt LoadbalancerStack.Outputs.SecurityGroup
         Vpc: !Ref Vpc
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/infrastructure.yaml
+      TemplateURL: infrastructure.yaml
       TimeoutInMinutes: 30
 
   GetVpcCidrLambdaStack:
@@ -194,7 +191,7 @@ Resources:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
         Vpc: !Ref Vpc
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/get-vpc-cidr-lambda.yaml
+      TemplateURL: get-vpc-cidr-lambda.yaml
       TimeoutInMinutes: 30
 
   ############ Adapter ############
@@ -209,7 +206,7 @@ Resources:
         RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.AdapterRdsDbSecurityGroup
         MultiAZ: !Ref AdapterDbMultiAZ
         PrivateSubnets: !Ref PrivateSubnets
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/adapter/database.yaml
+      TemplateURL: adapter/database.yaml
       TimeoutInMinutes: 30
 
   AdapterSecretStack:
@@ -217,7 +214,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/adapter/secret.yaml
+      TemplateURL: adapter/secret.yaml
       TimeoutInMinutes: 30
 
   AdapterTaskStack:
@@ -239,7 +236,7 @@ Resources:
         DbEndpoint: !GetAtt AdapterDatabaseStack.Outputs.DbEndpoint
         RdsInstanceSecret: !GetAtt AdapterDatabaseStack.Outputs.RdsInstanceSecret
         VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/adapter/task.yaml
+      TemplateURL: adapter/task.yaml
       TimeoutInMinutes: 30
 
   AdapterServiceStack:
@@ -258,7 +255,7 @@ Resources:
         PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
         TaskDefinition: !GetAtt AdapterTaskStack.Outputs.TaskDefinition
         Vpc: !Ref Vpc
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/adapter/service.yaml
+      TemplateURL: adapter/service.yaml
       TimeoutInMinutes: 30
 
   ############ Analyze ############
@@ -274,7 +271,7 @@ Resources:
           - Service: !FindInMap [Service, Analyze, ImageRepoName]
         ImageTag: !Ref AnalyzeImageTag
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/analyze/task.yaml
+      TemplateURL: analyze/task.yaml
       TimeoutInMinutes: 30
 
   AnalyzeServiceStack:
@@ -292,7 +289,7 @@ Resources:
         PrivateSubnets: !Ref PrivateSubnets
         PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
         Vpc: !Ref Vpc
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/analyze/service.yaml
+      TemplateURL: analyze/service.yaml
       TimeoutInMinutes: 30
 
   ############ Frontend ############
@@ -308,7 +305,7 @@ Resources:
           - Service: !FindInMap [Service, Frontend, ImageRepoName]
         ImageTag: !Ref FrontendImageTag
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/frontend/task.yaml
+      TemplateURL: frontend/task.yaml
       TimeoutInMinutes: 30
 
   FrontendServiceStack:
@@ -326,7 +323,7 @@ Resources:
         PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
         TaskDefinition: !GetAtt FrontendTaskStack.Outputs.TaskDefinition
         Vpc: !Ref Vpc
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/frontend/service.yaml
+      TemplateURL: frontend/service.yaml
       TimeoutInMinutes: 30
 
 
@@ -336,7 +333,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/jobs/elemental.yaml
+      TemplateURL: jobs/elemental.yaml
       TimeoutInMinutes: 30
 
   JobsTaskStack:
@@ -359,7 +356,7 @@ Resources:
         MediaConvertPresetStandardH264: !GetAtt JobsElementalStack.Outputs.MediaConvertPresetStandardH264
         PrivateHostedZoneName: !FindInMap [Common, DNS, PrivateHostedZoneName]
         VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/jobs/task.yaml
+      TemplateURL: jobs/task.yaml
       TimeoutInMinutes: 30
 
   JobsServiceStack:
@@ -374,7 +371,7 @@ Resources:
         PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
         PrivateSubnets: !Ref PrivateSubnets
         TaskDefinition: !GetAtt JobsTaskStack.Outputs.TaskDefinition
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/jobs/service.yaml
+      TemplateURL: jobs/service.yaml
       TimeoutInMinutes: 30
 
   ############ Keycloak ############
@@ -383,7 +380,7 @@ Resources:
     Properties:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/keycloak/secret.yaml
+      TemplateURL: keycloak/secret.yaml
       TimeoutInMinutes: 30
 
   KeycloakDatabaseStack:
@@ -397,7 +394,7 @@ Resources:
         RdsMaxAllocatedStorage: !Ref KeycloakDbMaxAllocatedStorage
         DbClass: !Ref KeycloakDbClass
         RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.KeycloakRdsDbSecurityGroup
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/keycloak/database.yaml
+      TemplateURL: keycloak/database.yaml
       TimeoutInMinutes: 30
 
   KeycloakTaskStack:
@@ -418,7 +415,7 @@ Resources:
         AdminSecret: !GetAtt KeycloakSecretStack.Outputs.AdminSecret
         RdsInstanceSecret: !GetAtt KeycloakDatabaseStack.Outputs.RdsInstanceSecret
         DbEndpoint: !GetAtt KeycloakDatabaseStack.Outputs.DbEndpoint
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/keycloak/task.yaml
+      TemplateURL: keycloak/task.yaml
       TimeoutInMinutes: 30
 
   KeycloakServiceStack:
@@ -436,7 +433,7 @@ Resources:
         PublicLoadbalancerListenerArn: !GetAtt LoadbalancerStack.Outputs.PublicListener
         TaskDefinition: !GetAtt KeycloakTaskStack.Outputs.TaskDefinition
         Vpc: !Ref Vpc
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/keycloak/service.yaml
+      TemplateURL: keycloak/service.yaml
       TimeoutInMinutes: 30
 
 Outputs:

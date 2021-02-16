@@ -11,10 +11,6 @@ Parameters:
     Type: String
     Default: 4.6.1
     Description: "Image tag"
-  CloudFormationTemplatesBucket:
-    Type: String
-    Default: https://s3-eu-north-1.amazonaws.com/av-marketplace-cf/latest
-    Description: "Bucket containing CF templates"
   JobsImageTag:
     Type: String
     Default: 4.6.1
@@ -92,7 +88,6 @@ Resources:
         AnalyzeImageTag: !Ref AnalyzeImageTag
         ApplicationTag: accurate-video
         CapacityProvider: FARGATE_SPOT
-        CloudFormationTemplatesBucket: !Ref CloudFormationTemplatesBucket
         ContainerRegistry: 709825985650.dkr.ecr.us-east-1.amazonaws.com/codemill
         DomainName: ""
         FrontendContainerCpu: 512
@@ -116,5 +111,5 @@ Resources:
         PrivateSubnets: !Join [",", !Ref PrivateSubnets]
         PublicSubnets: !Join [",", !Ref PublicSubnets]
         Vpc: !Ref Vpc
-      TemplateURL: !Sub ${CloudFormationTemplatesBucket}/base.yaml
+      TemplateURL: base.yaml
       TimeoutInMinutes: 30
