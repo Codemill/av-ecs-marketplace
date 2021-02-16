@@ -291,7 +291,7 @@ Resources:
       Parameters:
         ApplicationTag: !Ref ApplicationTag
         HostedZoneId: !Ref HostedZoneId
-        LoadBalancerDomainName: !Ref DomainName
+        DomainName: !Ref DomainName
         PublicSubnets: !Join [",", !Ref PublicSubnets]
         Vpc: !Ref Vpc
       TemplateURL: !Sub

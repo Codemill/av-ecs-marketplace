@@ -9,7 +9,7 @@ Parameters:
   HostedZoneId:
     Type: String
     Description: Route53 Hosted Zone Id
-  LoadBalancerDomainName:
+  DomainName:
     Type: String
     Description: Domain name that will be given to the load balancer (e.g. av.example.com)
   PublicSubnets:
@@ -72,15 +72,15 @@ Resources:
         DNSName: !GetAtt PublicLoadBalancer.DNSName
         HostedZoneId: !GetAtt PublicLoadBalancer.CanonicalHostedZoneID
       HostedZoneId: !Ref HostedZoneId
-      Name: !Sub "${LoadBalancerDomainName}."
+      Name: !Sub "${DomainName}."
       Type: A
 
   Certificate:
     Type: AWS::CertificateManager::Certificate
     Properties:
-      DomainName: !Ref LoadBalancerDomainName
+      DomainName: !Ref DomainName
       DomainValidationOptions:
-        - DomainName: !Ref LoadBalancerDomainName
+        - DomainName: !Ref DomainName
           HostedZoneId: !Ref HostedZoneId
       Tags:
         - Key: application
