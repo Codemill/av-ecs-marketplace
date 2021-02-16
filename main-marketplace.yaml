@@ -1,0 +1,294 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Main template which will deploy infrastructure and services as nested stacks.
+
+Parameters:
+  AdapterDbClass:
+    Type: String
+    Default: db.t3.small
+    AllowedValues:
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.m5.large
+    Description: The RDS Database class to use
+  ApplicationTag:
+    Type: String
+    Default: accurate-video
+    Description: Used to tag all resources
+  CapacityProvider:
+    Type: String
+    Default: FARGATE
+    AllowedValues:
+      - FARGATE
+      - FARGATE_SPOT
+    Description: Capacity Provider
+  AdapterImageTag:
+    Type: String
+    Default: 4.6.1
+    Description: "Image tag"
+  AdapterContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  AdapterContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  AdapterDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
+  AnalyzeImageTag:
+    Type: String
+    Default: 4.6.1
+    Description: "Image tag"
+  AnalyzeContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  AnalyzeContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  AnalyzeDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
+  JobsImageTag:
+    Type: String
+    Default: 4.6.1
+    Description: "Image tag"
+  JobsContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  JobsContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  JobsDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
+  FrontendImageTag:
+    Type: String
+    Default: 4.6.1
+    Description: "Image tag"
+  FrontendContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  FrontendContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  FrontendDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
+  KeycloakImageTag:
+    Type: String
+    Default: 4.6.1
+    Description: "Image tag"
+  KeycloakContainerCpu:
+    Type: String
+    Default: "512"
+    Description: "Task CPU resources"
+  KeycloakContainerMemory:
+    Type: String
+    Default: "1024"
+    Description: "Task memory resources"
+  KeycloakDesiredCount:
+    Type: Number
+    Default: 1
+    Description: "Desired task count"
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Route53 Hosted Zone Id
+  KeycloakDbClass:
+    Type: String
+    Default: db.t3.small
+    AllowedValues:
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.m5.large
+    Description: The RDS Database class to use
+  DomainName:
+    Type: String
+    Description: Full domain name that will be given to the Accurate.Video Validate application (e.g. av.example.com)
+    AllowedPattern: "^(\\*\\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$"
+    ConstraintDescription: must be a valid domain name (e.g. av.example.com)
+  LogsRetention:
+    Type: Number
+    Default: 14
+    Description: Number of days that application logs are saved in CloudWatch Logs
+  PrivateSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The Private Subnets which the ECS Services and RDS Database will be deployed in (At least two)
+  PublicSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The Public Subnets which the Application Load Balancer will be deployed in (At least two)
+  Vpc:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC which AccurateVideo will be deployed in
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network
+        Parameters:
+          - Vpc
+          - PrivateSubnets
+          - PublicSubnets
+      - Label:
+          default: DNS
+        Parameters:
+          - HostedZoneId
+          - DomainName
+      - Label:
+          default: Docker Images
+        Parameters:
+          - AdapterImageTag
+          - AnalyzeImageTag
+          - FrontendImageTag
+          - JobsImageTag
+          - KeycloakImageTag
+      - Label:
+          default: Resources
+        Parameters:
+          - AdapterContainerCpu
+          - AdapterContainerMemory
+          - AdapterDesiredCount
+          - AnalyzeContainerCpu
+          - AnalyzeContainerMemory
+          - AnalyzeDesiredCount
+          - FrontendContainerCpu
+          - FrontendContainerMemory
+          - FrontendDesiredCount
+          - JobsContainerCpu
+          - JobsContainerMemory
+          - JobsDesiredCount
+          - KeycloakContainerCpu
+          - KeycloakContainerMemory
+          - KeycloakDesiredCount
+      - Label:
+          default: Database
+        Parameters:
+          - AdapterDbClass
+          - KeycloakDbClass
+      - Label:
+          default: Other configuration
+        Parameters:
+          - ApplicationTag
+          - CapacityProvider
+          - LogsRetention
+
+    ParameterLabels:
+      AdapterContainerCpu:
+        default: Adapter Container CPU
+      AdapterContainerMemory:
+        default: Adapter Container memory
+      AdapterDbClass:
+        default: Adapter Database Class
+      AdapterDesiredCount:
+        default: Adapter Desired Count
+      AdapterImageTag:
+        default: Adapter Image Tag
+      AnalyzeContainerCpu:
+        default: Analyze Container Cpu
+      AnalyzeContainerMemory:
+        default: Analyze Container Memory
+      AnalyzeDesiredCount:
+        default: Analyze Desired Count
+      AnalyzeImageTag:
+        default: Analyze Image Tag
+      ApplicationTag:
+        default: Application Tag
+      CapacityProvider:
+        default: Capacity Provider
+      DomainName:
+        default: Domain Name
+      FrontendContainerCpu:
+        default: Frontend Container Cpu
+      FrontendContainerMemory:
+        default: Frontend Container Memory
+      FrontendDesiredCount:
+        default: Frontend Desired Count
+      FrontendImageTag:
+        default: Frontend Image Tag
+      HostedZoneId:
+        default: HostedZone ID
+      JobsContainerCpu:
+        default: Jobs Container Cpu
+      JobsContainerMemory:
+        default: Jobs Container Memory
+      JobsDesiredCount:
+        default: Jobs Desired Count
+      JobsImageTag:
+        default: Jobs Image Tag
+      KeycloakContainerCpu:
+        default: Keycloak Container Cpu
+      KeycloakContainerMemory:
+        default: Keycloak Container Memory
+      KeycloakDbClass:
+        default: Keycloak Database Class
+      KeycloakDesiredCount:
+        default: Keycloak Desired Count
+      KeycloakImageTag:
+        default: Keycloak Image Tag
+      LogsRetention:
+        default: Application Logs Retention
+      PrivateSubnets:
+        default: Private Subnets
+      PublicSubnets:
+        default: Public Subnets
+      Vpc:
+        default: VPC ID
+
+Resources:
+  MainStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AdapterContainerCpu: !Ref AdapterContainerCpu
+        AdapterContainerMemory: !Ref AdapterContainerMemory
+        AdapterDbAllocatedStorage: 20
+        AdapterDbClass: !Ref AdapterDbClass
+        AdapterDbMaxAllocatedStorage: 100
+        AdapterDbMultiAZ: false
+        AdapterDesiredCount: !Ref AdapterDesiredCount
+        AdapterImageTag: !Ref AdapterImageTag
+        AnalyzeContainerCpu: !Ref AnalyzeContainerCpu
+        AnalyzeContainerMemory: !Ref AnalyzeContainerMemory
+        AnalyzeDesiredCount: !Ref AnalyzeDesiredCount
+        AnalyzeImageTag: !Ref AnalyzeImageTag
+        ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !Ref CapacityProvider
+        ContainerRegistry: 709825985650.dkr.ecr.us-east-1.amazonaws.com/codemill
+        DomainName: !Ref DomainName
+        FrontendContainerCpu: !Ref FrontendContainerCpu
+        FrontendContainerMemory: !Ref FrontendContainerMemory
+        FrontendDesiredCount: !Ref FrontendDesiredCount
+        FrontendImageTag: !Ref FrontendImageTag
+        HostedZoneId: !Ref HostedZoneId
+        JobsContainerCpu: !Ref JobsContainerCpu
+        JobsContainerMemory: !Ref JobsContainerMemory
+        JobsDesiredCount: !Ref JobsDesiredCount
+        JobsImageTag: !Ref JobsImageTag
+        KeycloakContainerCpu: !Ref KeycloakContainerCpu
+        KeycloakContainerMemory: !Ref KeycloakContainerMemory
+        KeycloakDbAllocatedStorage: 20
+        KeycloakDbClass: !Ref KeycloakDbClass
+        KeycloakDbMaxAllocatedStorage: 100
+        KeycloakDbMultiAZ: false
+        KeycloakDesiredCount: !Ref KeycloakDesiredCount
+        KeycloakImageTag: !Ref KeycloakImageTag
+        LogsRetention: !Ref LogsRetention
+        PrivateSubnets: !Join [",", !Ref PrivateSubnets]
+        PublicSubnets: !Join [",", !Ref PublicSubnets]
+        Vpc: !Ref Vpc
+      TemplateURL: base.yaml
+      TimeoutInMinutes: 30
