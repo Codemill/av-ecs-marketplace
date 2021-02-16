@@ -1,6 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: ""
-
+Description: This template will deploy an ECS cluster
 Parameters:
   ApplicationTag:
     Type: String

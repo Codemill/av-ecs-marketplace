@@ -1,10 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: This template will deploy a Cloud Map private DNS namespace which
-  allows services to find each other without going through the ALB. An S3 bucket
-  containing configuration files used by the services. Changes to the
-  configuration files will notify SNS which will later trigger a lambda to
-  re-deploy the service. Finally there is a CloudWatch log group which the
-  different services will send their application logs to.
+Description: This template will deploy a public Application Load Balancer
+  used to route traffic to the containers in the private subnets.
 
 Parameters:
   ApplicationTag:
@@ -15,10 +11,10 @@ Parameters:
     Description: Route53 Hosted Zone Id
   LoadBalancerDomainName:
     Type: String
-    Description: Domain name that will be given to the load balancer, including a trailing dot (e.g. av.example.com.)
+    Description: Domain name that will be given to the load balancer (e.g. av.example.com)
   PublicSubnets:
     Type: String
-    Description: Public Subnets
+    Description: Public Subnets (comma separated)
   Vpc:
     Type: String
     Description: VPC ID
@@ -114,8 +110,10 @@ Resources:
           Value: AccurateVideo - ALB SG
 
 
-
 Outputs:
+  ExternalUrl:
+    Description: The url of the external load balancer
+    Value: !Sub http://${PublicLoadBalancer.DNSName}
   PublicListener:
     Description: The ARN of the public load balancer's Listener
     Value: !Ref PublicLoadBalancerListenerHttps
