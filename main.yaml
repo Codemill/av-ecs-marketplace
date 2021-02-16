@@ -373,7 +373,7 @@ Resources:
           - Service: !FindInMap [Service, Adapter, ImageRepoName]
         ImageTag: !Ref AdapterImageTag
         KeycloakBackendSecret: !GetAtt KeycloakSecretStack.Outputs.BackendSecret
-        KeycloakHost: !Sub "https://${DomainName}"
+        KeycloakHost: !Sub ${LoadbalancerStack.Outputs.ExternalUrl}
         LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
         AuthRunnerSecret: !GetAtt AdapterSecretStack.Outputs.AuthRunnerSecretArn
         ClusterName: !GetAtt ClusterStack.Outputs.ClusterName
@@ -570,7 +570,7 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         ContainerCpu: !Ref KeycloakContainerCpu
         ContainerMemory: !Ref KeycloakContainerMemory
-        FrontendUrl: !Sub https://${DomainName}/
+        FrontendUrl: !Sub ${LoadbalancerStack.Outputs.ExternalUrl}/
         ImageRepoName: !Sub
           - ${ContainerRegistry}/${Service}
           - Service: !FindInMap [Service, Keycloak, ImageRepoName]
@@ -609,7 +609,7 @@ Resources:
 Outputs:
   ApplicationURL:
     Description: Application URL
-    Value: !Sub https://${DomainName}
+    Value: !Sub ${LoadbalancerStack.Outputs.ExternalUrl}
   UserAdminURL:
     Description: User Admin URL
-    Value: !Sub https://${DomainName}/auth
+    Value: !Sub ${LoadbalancerStack.Outputs.ExternalUrl}/auth
