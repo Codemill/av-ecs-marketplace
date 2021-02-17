@@ -202,7 +202,7 @@ Resources:
         ApplicationTag: !Ref ApplicationTag
         RdsAllocatedStorage: !Ref AdapterDbAllocatedStorage
         RdsMaxAllocatedStorage: !Ref AdapterDbMaxAllocatedStorage
-        DbClass: !Ref AdapterDbClass
+        RdsDbClass: !Ref AdapterDbClass
         RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.AdapterRdsDbSecurityGroup
         MultiAZ: !Ref AdapterDbMultiAZ
         PrivateSubnets: !Ref PrivateSubnets
@@ -326,7 +326,6 @@ Resources:
       TemplateURL: frontend/service.yaml
       TimeoutInMinutes: 30
 
-
   ############ Jobs ############
   JobsElementalStack:
     Type: AWS::CloudFormation::Stack
@@ -392,7 +391,7 @@ Resources:
         PrivateSubnets: !Ref PrivateSubnets
         RdsAllocatedStorage: !Ref KeycloakDbAllocatedStorage
         RdsMaxAllocatedStorage: !Ref KeycloakDbMaxAllocatedStorage
-        DbClass: !Ref KeycloakDbClass
+        RdsDbClass: !Ref KeycloakDbClass
         RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.KeycloakRdsDbSecurityGroup
       TemplateURL: keycloak/database.yaml
       TimeoutInMinutes: 30
