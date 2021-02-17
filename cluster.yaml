@@ -9,7 +9,6 @@ Resources:
   EcsCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: accurate-video
       Tags:
         - Key: application
           Value: !Ref ApplicationTag
