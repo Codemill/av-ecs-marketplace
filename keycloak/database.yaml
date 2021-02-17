@@ -62,7 +62,6 @@ Resources:
       DBInstanceClass: !Ref RdsDbClass
       DBName: keycloak
       DBSubnetGroupName: !Ref RdsDbSubnetGroup
-      DeletionProtection: true
       Engine: Postgres
       MasterUsername: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::username}}"
       MasterUserPassword: !Sub "{{resolve:secretsmanager:${RdsInstanceSecret}::password}}"
