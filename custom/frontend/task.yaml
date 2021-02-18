@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ""
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+  ContainerCpu:
+    Type: Number
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Description: How much memory in megabytes to give the container
+  ImageRepoName:
+    Type: String
+    Description: The ecr repo and tag to use for image deployment
+  ImageTag:
+    Type: String
+    Description: The ecr repo and tag to use for image deployment
+  LogGroupName:
+    Type: String
+    Description: CloudWatch Log Group Name
+  RegistryCredentials:
+    Type: String
+    Description: Registry Credentials
+
+Resources:
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: av-frontend
+      Cpu: !Ref "ContainerCpu"
+      Memory: !Ref "ContainerMemory"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: av-frontend
+          Cpu: !Ref "ContainerCpu"
+          Memory: !Ref "ContainerMemory"
+          Image: !Sub ${ImageRepoName}:${ImageTag}
+          Command:
+            - !Sub |
+                echo "" > /usr/share/nginx/html/assets/json/settings.js; \ #Create this file
+          EntryPoint:
+            - "sh"
+            - "-c"
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: !Ref LogGroupName
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: av-frontend
+          RepositoryCredentials:
+            CredentialsParameter: !Ref "RegistryCredentials"
+          PortMappings:
+            - ContainerPort: 80
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "secretsmanager:GetSecretValue"
+                Resource:
+                  - !Ref RegistryCredentials
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+Outputs:
+  TaskDefinition:
+    Description: Task Definition
+    Value: !Ref TaskDefinition

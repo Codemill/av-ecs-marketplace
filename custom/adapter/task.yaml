@@ -1,0 +1,216 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ""
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+  ContainerCpu:
+    Type: Number
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Description: How much memory in megabytes to give the container
+  ImageRepoName:
+    Type: String
+    Description: The ecr repo to use for image deployment
+  ImageTag:
+    Type: String
+    Description: The ecr tag to use for image deployment
+  LogGroupName:
+    Type: String
+    Description: CloudWatch Log Group Name
+  AuthRunnerSecret:
+    Type: String
+    Description: AuthRunner Secret
+  ClusterName:
+    Type: String
+    Description: Cluster Name
+  DbEndpoint:
+    Type: String
+    Description: DB Endpoint
+  RdsInstanceSecret:
+    Type: String
+    Description: RDS Instance Secret
+  RegistryCredentials:
+    Type: String
+    Description: Registry Credentials
+  ConfigBucketName:
+    Type: String
+    Description: Config Bucket Name
+  VpcCidrBlock:
+    Type: String
+    Description: VPC CIDR Block
+
+Resources:
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: av-adapter
+      Cpu: !Ref ContainerCpu
+      Memory: !Ref ContainerMemory
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: av-adapter
+          Cpu: !Ref ContainerCpu
+          Memory: !Ref ContainerMemory
+          Image: !Sub ${ImageRepoName}:${ImageTag}
+          Command:
+            - !Sub |
+                apk add aws-cli; \
+                aws s3 cp s3://${ConfigBucketName}/adapter/settings.js /opt/static/authenticated/settings.js; \
+                /opt/entrypoint.py java --add-modules java.se --add-exports java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED -Dvertx.hazelcast.config=/opt/ecs-cluster.xml -jar runner.jar;
+          EntryPoint:
+            - "sh"
+            - "-c"
+          PortMappings:
+            - ContainerPort: 8080
+            - ContainerPort: 5701
+            - ContainerPort: 5699
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroupName
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: av-adapter
+          RepositoryCredentials:
+            CredentialsParameter: !Ref RegistryCredentials
+          Environment:
+            - Name: ACL_ENABLED
+              Value: "false"
+            - Name: ACL_STORAGE_ENABLED
+              Value: "false"
+            - Name: AUTH_ENABLED
+              Value: "true"
+            - Name: AUTH_SONY_ENABLED
+              Value: "true"
+            - Name: AUTH_FALLBACK_USERNAME
+              Value: "fallback"
+            - Name: AUTH_SONY_URL_MP_REST_URL
+              Value: https://mcmplayer-qa.mc.spe.sony.com/ #Stage probably
+            - Name: DELETION_PHYSICAL_FILE_ENABLED
+              Value: "true"
+            - Name: HZE_CLUSTER_NAME_REGEXP
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster\/${ClusterName}
+            - Name: HZE_SERVICE_NAME_REGEXP
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/${ClusterName}\/[a-zA-z0-9].*-(JobsService|AdapterService)-.*[a-zA-z0-9]
+            - Name: HZE_IPV4_CIDR
+              Value: !Ref VpcCidrBlock
+            - Name: QUARKUS_DATASOURCE_URL
+              Value: !Sub "jdbc:postgresql://${DbEndpoint}/accurate_video"
+            - Name: QUARKUS_DATASOURCE_DRIVER
+              Value: "org.postgresql.Driver"
+            - Name: QUARKUS_FLYWAY_BASELINE-ON-MIGRATE
+              Value: "false"
+            - Name: QUARKUS_FLYWAY_MIGRATE-AT-START
+              Value: "false"
+            - Name: QUARKUS_HIBERNATE-ORM_DIALECT
+              Value: "org.hibernate.dialect.HSQLDialect"
+            - Name: QUARKUS_HIBERNATE-ORM_LOG_SQL
+              Value: "false"
+            - Name: QUARKUS_HTTP_CORS
+              Value: "true"
+            - Name: QUARKUS_LOG_LEVEL
+              Value: "INFO"
+            - Name: QUARKUS_SECURITY_USERS_FILE_ENABLED
+              Value: "false"
+            - Name: QUARKUS_VERTX_CLUSTER_HOST
+              Value: "0.0.0.0"
+            - Name: QUARKUS_VERTX_CLUSTER_PORT
+              Value: "5699"
+            - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_PORT
+              Value: "5699"
+            - Name: HTTP_PATH_PREFIX
+              Value: "/api"
+            - Name: CLUSTER_XML
+              Value: "/opt/ecs-cluster.xml"
+            - Name: AUTH_JWT_ENABLED
+              Value: "false"
+            - Name: AUTH_JWT_ISSUER
+              Value: "https://keycloak.codemill.cloud/auth/realms/av-dev"
+          Secrets:
+            - Name: DB_USER
+              ValueFrom: !Sub "${RdsInstanceSecret}:username::"
+            - Name: DB_PASS
+              ValueFrom: !Sub "${RdsInstanceSecret}:password::"
+            - Name: AUTH_RUNNER_USERNAME
+              ValueFrom: !Sub "${AuthRunnerSecret}:username::"
+            - Name: AUTH_RUNNER_PASSWORD
+              ValueFrom: !Sub "${AuthRunnerSecret}:password::"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref RdsInstanceSecret
+                  - !Ref AuthRunnerSecret
+                  - !Ref RegistryCredentials
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: /
+      Policies:
+        - PolicyName: AmazonECSTaskRolePolicy
+          PolicyDocument:
+            Statement:
+              - Sid: HazelcastDiscovery
+                Effect: Allow
+                Action:
+                  - ecs:ListClusters
+                  - ecs:ListServices
+                  - ecs:ListTasks
+                  - ecs:DescribeTasks
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - aws-marketplace:RegisterUsage
+                  - aws-marketplace:MeterUsage
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:HeadObject
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: "*"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+Outputs:
+  TaskDefinition:
+    Description: Task Definition
+    Value: !Ref TaskDefinition

@@ -1,0 +1,227 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Deploy a service on AWS Fargate, hosted in a private subnet
+
+Parameters:
+  AdapterServiceName:
+    Type: String
+    Description: Adapter Service Name
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+  AuthRunnerSecretArn:
+    Type: String
+    Description: Auth Runner Secrets Manager Arn
+  ClusterName:
+    Type: String
+    Description: ECS Cluster Name
+  ContainerCpu:
+    Type: Number
+    Description: How much CPU to give the container. 1024 is 1 CPU
+  ContainerMemory:
+    Type: Number
+    Description: How much memory in megabytes to give the container
+  ElementalRoleArn:
+    Type: String
+    Description: Elemental Role Arn
+  ImageRepoName:
+    Type: String
+    Description: The docker image repo to use for image deployment
+  ImageTag:
+    Type: String
+    Description: The docker image tag to use for image deployment
+  LogGroupName:
+    Type: String
+    Description: CloudWatch Log Group Name
+  MediaConvertPresetWav:
+    Type: String
+    Description: MediaConvert Preset Wav
+  MediaConvertPresetStandardH264:
+    Type: String
+    Description: MediaConvert Preset Standard H264
+  PrivateHostedZoneName:
+    Type: String
+    Description: Private HostedZone Name
+  VpcCidrBlock:
+    Type: String
+    Description: VPC CIDR Block
+  RegistryCredentials:
+    Type: String
+    Description: Registry Credentials
+  BlackFrameLocation:
+    Type: String
+  BlackFrameDuration:
+    Type: String
+  BlackFrameNumerator:
+    Type: String
+  BlackFrameDenominator:
+    Type: String
+Resources:
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: av-jobs
+      Cpu: !Ref ContainerCpu
+      Memory: !Ref ContainerMemory
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: av-jobs
+          Cpu: !Ref ContainerCpu
+          Memory: !Ref ContainerMemory
+          Image: !Sub ${ImageRepoName}:${ImageTag}
+          RepositoryCredentials:
+            CredentialsParameter: !Ref "RegistryCredentials"
+          PortMappings:
+            - ContainerPort: 5701
+            - ContainerPort: 5699
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroupName
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: av-jobs
+          Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: AV_RUNNER_LOWRES_TEMPLATE_ID
+              Value: !Ref MediaConvertPresetStandardH264
+            - Name: AV_RUNNER_AUDIO_EXTRACT_TEMPLATE_ID
+              Value: !Ref MediaConvertPresetWav
+            - Name: AV_RUNNER_BLACK_FRAME_LOCATION
+              Value: !Ref BlackFrameLocation
+            - Name: AV_RUNNER_BLACK_FRAME_DURATION
+              Value: !Ref BlackFrameDuration
+            - Name: AV_RUNNER_BLACK_FRAME_NUMERATOR
+              Value: !Ref BlackFrameNumerator
+            - Name: AV_RUNNER_BLACK_FRAME_DENOMINATOR
+              Value: !Ref BlackFrameDenominator
+            - Name: AV_RUNNER_EXECUTOR_POLL_INTERVAL
+              Value: PT1M
+            - Name: AP_ADAPTER_URL_MP_REST_URL
+              Value: !Sub http://${AdapterServiceName}.${PrivateHostedZoneName}:8080
+            # - Name: ELEMENTAL_AWS_ROLE
+            #   Value: !Ref ElementalRoleArn
+            - Name: HZE_CLUSTER_NAME_REGEXP
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster\/${ClusterName}
+            - Name: HZE_SERVICE_NAME_REGEXP
+              Value: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service\/${ClusterName}\/[a-zA-z0-9].*-(JobsService|AdapterService)-.*[a-zA-z0-9]
+            - Name: HZE_IPV4_CIDR
+              Value: !Ref VpcCidrBlock
+            - Name: AV_RUNNER_BINDIR
+              Value: /usr/local/bin
+            - Name: CLUSTER_XML
+              Value: "/opt/ecs-cluster.xml"
+            - Name: QUARKUS_VERTX_CLUSTER_HOST
+              Value: "0.0.0.0"
+            - Name: QUARKUS_VERTX_CLUSTER_PORT
+              Value: "5699"
+            - Name: QUARKUS_VERTX_CLUSTER_PUBLIC_PORT
+              Value: "5699"
+          Secrets:
+            - Name: AP_ADAPTER_USERNAME
+              ValueFrom: !Sub "${AuthRunnerSecretArn}:username::"
+            - Name: AP_ADAPTER_PASSWORD
+              ValueFrom: !Sub "${AuthRunnerSecretArn}:password::"
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: [sts:AssumeRole]
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref AuthRunnerSecretArn
+                  - !Ref RegistryCredentials
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: [sts:AssumeRole]
+      Path: /
+      Policies:
+        - PolicyName: AmazonECSTaskRolePolicy
+          PolicyDocument:
+            Statement:
+              - Sid: HazelcastDiscovery
+                Effect: Allow
+                Action:
+                  - ecs:ListClusters
+                  - ecs:ListServices
+                  - ecs:ListTasks
+                  - ecs:DescribeTasks
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:HeadObject
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - rekognition:GetCelebrityInfo
+                  - rekognition:GetCelebrityRecognition
+                  - rekognition:GetContentModeration
+                  - rekognition:GetFaceDetection
+                  - rekognition:GetFaceSearch
+                  - rekognition:GetLabelDetection
+                  - rekognition:GetPersonTracking
+                  - rekognition:GetSegmentDetection
+                  - rekognition:GetTextDetection
+                  - rekognition:StartCelebrityRecognition
+                  - rekognition:StartContentModeration
+                  - rekognition:StartFaceDetection
+                  - rekognition:StartFaceSearch
+                  - rekognition:StartLabelDetection
+                  - rekognition:StartPersonTracking
+                  - rekognition:StartProjectVersion
+                  - rekognition:StartSegmentDetection
+                  - rekognition:StartTextDetection
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - mediaconvert:DescribeEndpoints
+                  - mediaconvert:GetPreset
+                  - mediaconvert:CreateJob
+                  - mediaconvert:GetJob
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !Ref ElementalRoleArn
+      Tags:
+        - Key: application
+          Value: !Ref ApplicationTag
+
+Outputs:
+  TaskDefinition:
+    Description: Task Definition
+    Value: !Ref TaskDefinition

@@ -1,0 +1,341 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Main template which will deploy infrastructure and services as nested stacks.
+
+Parameters:
+  ApplicationTag:
+    Type: String
+    Description: Used to tag all resources
+  CapacityProvider:
+    Type: String
+    AllowedValues:
+      - FARGATE
+      - FARGATE_SPOT
+    Description: Capacity Provider
+  ContainerRegistry:
+    Type: String
+    Description: Container Registry
+  AdapterImageTag:
+    Type: String
+    Description: "Image tag"
+  AdapterContainerCpu:
+    Type: String
+    Description: "Task CPU resources"
+  AdapterContainerMemory:
+    Type: String
+    Description: "Task memory resources"
+  AdapterDesiredCount:
+    Type: Number
+    Description: "Desired task count"
+  AdapterDbClass:
+    Type: String
+    AllowedValues:
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.m5.large
+    Description: The RDS Database class to use
+  AdapterDbMultiAZ:
+    Type: String
+    AllowedValues:
+      - "true"
+      - "false"
+  AdapterDbAllocatedStorage:
+    Type: String
+  AdapterDbMaxAllocatedStorage:
+    Type: String
+  AnalyzeImageTag:
+    Type: String
+    Description: "Image tag"
+  AnalyzeContainerCpu:
+    Type: String
+    Description: "Task CPU resources"
+  AnalyzeContainerMemory:
+    Type: String
+    Description: "Task memory resources"
+  AnalyzeDesiredCount:
+    Type: Number
+    Description: "Desired task count"
+  JobsImageTag:
+    Type: String
+    Description: "Image tag"
+  JobsContainerCpu:
+    Type: String
+    Description: "Task CPU resources"
+  JobsContainerMemory:
+    Type: String
+    Description: "Task memory resources"
+  JobsDesiredCount:
+    Type: Number
+    Description: "Desired task count"
+  FrontendImageTag:
+    Type: String
+    Description: "Image tag"
+  FrontendContainerCpu:
+    Type: String
+    Description: "Task CPU resources"
+  FrontendContainerMemory:
+    Type: String
+    Description: "Task memory resources"
+  FrontendDesiredCount:
+    Type: Number
+    Description: "Desired task count"
+  LogsRetention:
+    Type: Number
+    Description: Number of days that application logs are saved in CloudWatch Logs
+  PrivateSubnets:
+    Type: String
+    Description: The Private Subnets which the ECS Services and RDS Database will be deployed in (At least two)
+  Vpc:
+    Type: String
+    Description: The VPC which AccurateVideo will be deployed in
+  ClusterName:
+    Type: String
+  PublicLoadBalancerSecurityGroup:
+    Type: String
+  PublicLoadbalancerListenerArn:
+    Type: String
+  ConfigBucketName:
+    Type: String
+  RegistryCredentials:
+    Type: String
+  ApAnalyzeCacheDays:
+    Type: String
+  ApAnalyzeCacheDir:
+    Type: String
+  QuarkusHttpCors:
+    Type: String
+  HttpPathPrefix:
+    Type: String
+  BlackFrameLocation:
+    Type: String
+  BlackFrameDuration:
+    Type: String
+  BlackFrameNumerator:
+    Type: String
+  BlackFrameDenominator:
+    Type: String
+
+Mappings:
+  Service:
+    Adapter:
+      ImageRepoName: accurate-video-adapter
+      LoadbalancerListenerPriority: "2"
+      LoadbalancerListenerPath: "/api/*"
+    Analyze:
+      ImageRepoName: accurate-video-analyze
+      LoadbalancerListenerPath: "/api/analyze/*"
+      LoadbalancerListenerPriority: "1"
+    Frontend:
+      ImageRepoName: accurate-video-frontend
+      LoadbalancerListenerPath: "*"
+      LoadbalancerListenerPriority: "4"
+    Jobs:
+      ImageRepoName: accurate-video-jobs
+    Keycloak:
+      ImageRepoName: accurate-video-keycloak
+      LoadbalancerListenerPath: "/auth*"
+      LoadbalancerListenerPriority: "3"
+  Common:
+    DNS:
+      PrivateHostedZoneName: accurate-video.internal
+
+Resources:
+  InfrastructureStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        LogsRetention: !Ref LogsRetention
+        PrivateHostedZoneName: !FindInMap [Common, DNS, PrivateHostedZoneName]
+        PublicLoadBalancerSecurityGroup: !Ref PublicLoadBalancerSecurityGroup
+        Vpc: !Ref Vpc
+      TemplateURL: infrastructure.yaml
+      TimeoutInMinutes: 30
+
+  GetVpcCidrLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        Vpc: !Ref Vpc
+      TemplateURL: get-vpc-cidr-lambda.yaml
+      TimeoutInMinutes: 30
+
+  ############ Adapter ############
+  AdapterDatabaseStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        RdsAllocatedStorage: !Ref AdapterDbAllocatedStorage
+        RdsMaxAllocatedStorage: !Ref AdapterDbMaxAllocatedStorage
+        DbClass: !Ref AdapterDbClass
+        RdsDbSecurityGroup: !GetAtt InfrastructureStack.Outputs.AdapterRdsDbSecurityGroup
+        MultiAZ: !Ref AdapterDbMultiAZ
+        PrivateSubnets: !Ref PrivateSubnets
+      TemplateURL: adapter/database.yaml
+      TimeoutInMinutes: 30
+
+  AdapterSecretStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+      TemplateURL: adapter/secret.yaml
+      TimeoutInMinutes: 30
+
+  AdapterTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        ContainerCpu: !Ref AdapterContainerCpu
+        ContainerMemory: !Ref AdapterContainerMemory
+        ImageRepoName: !Sub
+          - ${ContainerRegistry}/${Service}
+          - Service: !FindInMap [Service, Adapter, ImageRepoName]
+        ImageTag: !Ref AdapterImageTag
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        AuthRunnerSecret: !GetAtt AdapterSecretStack.Outputs.AuthRunnerSecretArn
+        ClusterName: !Ref ClusterName
+        DbEndpoint: !GetAtt AdapterDatabaseStack.Outputs.DbEndpoint
+        RdsInstanceSecret: !GetAtt AdapterDatabaseStack.Outputs.RdsInstanceSecret
+        RegistryCredentials: !Ref RegistryCredentials
+        ConfigBucketName: !Ref ConfigBucketName
+        VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
+      TemplateURL: custom/adapter/task.yaml
+      TimeoutInMinutes: 30
+
+  AdapterServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        AdapterSG: !GetAtt InfrastructureStack.Outputs.AdapterSecurityGroup
+        CapacityProvider: !Ref CapacityProvider
+        ClusterName: !Ref ClusterName
+        DesiredCount: !Ref AdapterDesiredCount
+        LoadbalancerListenerPath: !FindInMap [Service, Adapter, LoadbalancerListenerPath]
+        LoadbalancerListenerPriority: !FindInMap [Service, Adapter, LoadbalancerListenerPriority]
+        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
+        PrivateSubnets: !Ref PrivateSubnets
+        PublicLoadbalancerListenerArn: !Ref PublicLoadbalancerListenerArn
+        TaskDefinition: !GetAtt AdapterTaskStack.Outputs.TaskDefinition
+        Vpc: !Ref Vpc
+      TemplateURL: adapter/service.yaml
+      TimeoutInMinutes: 30
+
+  ############ Analyze ############
+  AnalyzeTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        ContainerCpu: !Ref AnalyzeContainerCpu
+        ContainerMemory: !Ref AnalyzeContainerMemory
+        ImageRepoName: !Sub
+          - ${ContainerRegistry}/${Service}
+          - Service: !FindInMap [Service, Analyze, ImageRepoName]
+        ImageTag: !Ref AnalyzeImageTag
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        RegistryCredentials: !Ref RegistryCredentials
+        ApAnalyzeCacheDays: !Ref ApAnalyzeCacheDays
+        ApAnalyzeCacheDir: !Ref ApAnalyzeCacheDir
+        QuarkusHttpCors: !Ref QuarkusHttpCors
+        HttpPathPrefix: !Ref HttpPathPrefix
+      TemplateURL: custom/analyze/task.yaml
+      TimeoutInMinutes: 30
+  AnalyzeServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AnalyzeSG: !GetAtt InfrastructureStack.Outputs.AnalyzeSecurityGroup
+        ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !Ref CapacityProvider
+        ClusterName: !Ref ClusterName
+        LoadbalancerListenerPath: !FindInMap [Service, Analyze, LoadbalancerListenerPath]
+        LoadbalancerListenerPriority: !FindInMap [Service, Analyze, LoadbalancerListenerPriority]
+        DesiredCount: !Ref AnalyzeDesiredCount
+        TaskDefinition: !GetAtt AnalyzeTaskStack.Outputs.TaskDefinition
+        PrivateSubnets: !Ref PrivateSubnets
+        PublicLoadbalancerListenerArn: !Ref PublicLoadbalancerListenerArn
+        Vpc: !Ref Vpc
+      TemplateURL: analyze/service.yaml
+      TimeoutInMinutes: 30
+
+  ############ Frontend ############
+  FrontendTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        ContainerCpu: !Ref FrontendContainerCpu
+        ContainerMemory: !Ref FrontendContainerMemory
+        ImageRepoName: !Sub
+          - ${ContainerRegistry}/${Service}
+          - Service: !FindInMap [Service, Frontend, ImageRepoName]
+        ImageTag: !Ref FrontendImageTag
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        RegistryCredentials: !Ref RegistryCredentials
+      TemplateURL: custom/frontend/task.yaml
+      TimeoutInMinutes: 30
+
+  FrontendServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !Ref CapacityProvider
+        ClusterName: !Ref ClusterName
+        DesiredCount: !Ref FrontendDesiredCount
+        FrontendSG: !GetAtt InfrastructureStack.Outputs.FrontendSecurityGroup
+        LoadbalancerListenerPath: !FindInMap [Service, Frontend, LoadbalancerListenerPath]
+        LoadbalancerListenerPriority: !FindInMap [Service, Frontend, LoadbalancerListenerPriority]
+        PrivateSubnets: !Ref PrivateSubnets
+        PublicLoadbalancerListenerArn: !Ref PublicLoadbalancerListenerArn
+        TaskDefinition: !GetAtt FrontendTaskStack.Outputs.TaskDefinition
+        Vpc: !Ref Vpc
+      TemplateURL: frontend/service.yaml
+      TimeoutInMinutes: 30
+
+  ############ Jobs ############
+  JobsTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AdapterServiceName: !GetAtt AdapterServiceStack.Outputs.ServiceName
+        ApplicationTag: !Ref ApplicationTag
+        AuthRunnerSecretArn: !GetAtt AdapterSecretStack.Outputs.AuthRunnerSecretArn
+        ClusterName: !Ref ClusterName
+        ContainerCpu: !Ref JobsContainerCpu
+        ContainerMemory: !Ref JobsContainerMemory
+        ImageRepoName: !Sub
+          - ${ContainerRegistry}/${Service}
+          - Service: !FindInMap [Service, Jobs, ImageRepoName]
+        ImageTag: !Ref JobsImageTag
+        LogGroupName: !GetAtt InfrastructureStack.Outputs.LogGroup
+        PrivateHostedZoneName: !FindInMap [Common, DNS, PrivateHostedZoneName]
+        VpcCidrBlock: !GetAtt GetVpcCidrLambdaStack.Outputs.CidrBlock
+        RegistryCredentials: !Ref RegistryCredentials
+        BlackFrameLocation: !Ref BlackFrameLocation
+        BlackFrameDuration: !Ref BlackFrameDuration
+        BlackFrameNumerator: !Ref BlackFrameNumerator
+        BlackFrameDenominator: !Ref BlackFrameDenominator
+      TemplateURL: custom/jobs/task.yaml
+      TimeoutInMinutes: 30
+
+  JobsServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ApplicationTag: !Ref ApplicationTag
+        CapacityProvider: !Ref CapacityProvider
+        ClusterName: !Ref ClusterName
+        DesiredCount: !Ref JobsDesiredCount
+        JobsSG: !GetAtt InfrastructureStack.Outputs.JobsSecurityGroup
+        PrivateDNSNamespace: !GetAtt InfrastructureStack.Outputs.PrivateDnsNamespace
+        PrivateSubnets: !Ref PrivateSubnets
+        TaskDefinition: !GetAtt JobsTaskStack.Outputs.TaskDefinition
+      TemplateURL: jobs/service.yaml
+      TimeoutInMinutes: 30
